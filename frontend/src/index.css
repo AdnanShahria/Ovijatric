@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Light Theme */
+    --bg-main: #f4f1ea; /* earthy light */
+    --text-main: #1B4332; /* deep forest green */
+    --color-white-rgb: 255 255 255;
+    --color-primary-rgb: 255 107 53; /* adventure orange */
+    --color-primary-glow-rgb: 255 140 100;
+  }
+
+  .dark {
+    /* Dark Theme */
+    --bg-main: #0d1a13; /* deep dark green */
+    --text-main: #e2e8f0;
+    --color-white-rgb: 0 0 0;
+    --color-primary-rgb: 255 107 53; /* adventure orange */
+    --color-primary-glow-rgb: 255 140 100;
+  }
+
+  body {
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    transition: background-color 0.3s, color 0.3s;
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-white/5 backdrop-blur-md shadow-xl;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .glass-card {
+    @apply bg-white/[0.03] backdrop-blur-md transition-colors duration-200;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  .parallax-bg {
+    background-attachment: fixed;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+  }
+}

@@ -1,0 +1,13 @@
+node_modules/
+**/node_modules/
+**/dist/
+.dev.vars
+**/.dev.vars
+.env
+*.env
+**/.env
+.wrangler/
+**/.wrangler/
+**/scratch/
+.secrets.json
+_backup/

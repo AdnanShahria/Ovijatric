@@ -1,0 +1,22 @@
+{
+  "name": "ovijatrik",
+  "private": true,
+  "workspaces": ["frontend"],
+  "scripts": {
+    "dev": "concurrently --raw \"npm run dev --workspace=frontend\" \"wrangler pages dev frontend/public --port 8788 --compatibility-flag=nodejs_compat\"",
+    "build": "npm run build --workspace=frontend",
+    "deploy": "npm run build && wrangler pages deploy dist",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0",
+    "wrangler": "^3.0.0",
+    "drizzle-kit": "^0.22.0",
+    "tsx": "^4.7.0"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.6.0",
+    "drizzle-orm": "^0.31.0"
+  }
+}
