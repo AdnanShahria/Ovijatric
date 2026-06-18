@@ -3,7 +3,8 @@
   "private": true,
   "workspaces": ["frontend"],
   "scripts": {
-    "dev": "concurrently --raw \"npm run dev --workspace=frontend\" \"wrangler pages dev frontend/public --port 8788 --compatibility-flag=nodejs_compat\"",
+    "dev": "npx --yes kill-port 5173 8788 && concurrently --raw \"npm run dev --workspace=frontend\" \"wrangler pages dev frontend/public --port 8788 --compatibility-flag=nodejs_compat\"",
+    "dev:full": "npx --yes kill-port 5173 8788 && node Scripts/dev-dashboard.js",
     "build": "npm run build --workspace=frontend",
     "deploy": "npm run build && wrangler pages deploy dist",
     "db:generate": "drizzle-kit generate",

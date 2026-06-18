@@ -10,7 +10,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        inter: ['Inter', 'sans-serif'],
+        poppins: ['Poppins', 'sans-serif'],
+        garamond: ['"EB Garamond"', 'serif'],
       },
       colors: {
         background: 'var(--bg-main)',

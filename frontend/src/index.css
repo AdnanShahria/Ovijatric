@@ -5,7 +5,7 @@
 @layer base {
   :root {
     /* Light Theme */
-    --bg-main: #f4f1ea; /* earthy light */
+    --bg-main: #fdfbf7; /* premium warm white */
     --text-main: #1B4332; /* deep forest green */
     --color-white-rgb: 255 255 255;
     --color-primary-rgb: 255 107 53; /* adventure orange */
@@ -14,17 +14,24 @@
 
   .dark {
     /* Dark Theme */
-    --bg-main: #0d1a13; /* deep dark green */
-    --text-main: #e2e8f0;
-    --color-white-rgb: 0 0 0;
+    --bg-main: #fdfbf7; /* premium warm white */
+    --text-main: #1B4332;
+    --color-white-rgb: 255 255 255;
     --color-primary-rgb: 255 107 53; /* adventure orange */
     --color-primary-glow-rgb: 255 140 100;
   }
 
   body {
     background-color: var(--bg-main);
+    background-image: linear-gradient(to bottom right, #fffdf5, #fdfbf7, #f4ead5);
+    background-attachment: fixed;
     color: var(--text-main);
+    font-family: 'Poppins', sans-serif;
     transition: background-color 0.3s, color 0.3s;
+  }
+
+  h1, h2, h3, h4, h5, h6, .font-garamond {
+    font-family: '"EB Garamond"', serif;
   }
 }
 
