@@ -1,6 +1,9 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { ThemeProvider } from '../contexts/ThemeContext'
 import { HomePage } from '../pages/Home/HomePage'
+import { EventDetailsPage } from '../pages/Events/EventDetailsPage'
+import { BlogDetailsPage } from '../pages/Blog/BlogDetailsPage'
+import { GalleryDetailsPage } from '../pages/Home/GalleryDetailsPage'
 import { Chatbot } from '../components/shared/Chatbot'
 import { Navbar } from '../components/shared/Navbar'
 
@@ -13,7 +16,9 @@ function IndexApp() {
           <main className="flex-grow">
             <Routes>
               <Route path="/" element={<HomePage />} />
-              {/* Add more public pages here: About, Events, Gallery, Team, Blog, Contact */}
+              <Route path="/events/:id" element={<EventDetailsPage />} />
+              <Route path="/blog/:id" element={<BlogDetailsPage />} />
+              <Route path="/gallery/:id" element={<GalleryDetailsPage />} />
               <Route path="*" element={<div className="p-8 text-center mt-20 text-2xl font-bold">404 - Adventure Not Found</div>} />
             </Routes>
           </main>

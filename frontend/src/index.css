@@ -28,6 +28,32 @@
     color: var(--text-main);
     font-family: 'Poppins', sans-serif;
     transition: background-color 0.3s, color 0.3s;
+    overflow-x: hidden;
+  }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 12px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #eef5ee; /* Matches homepage theme */
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #FF6B35; /* Adventure Orange */
+    border-radius: 6px;
+    border: 3px solid #eef5ee; /* Creates padding around the thumb */
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #e65a29; /* Slightly darker orange on hover */
+  }
+
+  /* For Firefox */
+  * {
+    scrollbar-width: auto;
+    scrollbar-color: #FF6B35 #eef5ee;
   }
 
   h1, h2, h3, h4, h5, h6, .font-garamond {

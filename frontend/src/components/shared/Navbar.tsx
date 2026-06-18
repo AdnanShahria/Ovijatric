@@ -5,7 +5,16 @@ import { useState, useEffect } from 'react'
 export const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const [activeSection, setActiveSection] = useState('#home')
   const location = useLocation()
+
+  const navLinks = [
+    { name: 'Home', path: '#home' },
+    { name: 'Events', path: '#events' },
+    { name: 'Gallery', path: '#gallery' },
+    { name: 'Blog', path: '#blog' },
+    { name: 'About Us', path: '#about' },
+  ]
 
   useEffect(() => {
     const handleScroll = () => {
@@ -15,14 +24,65 @@ export const Navbar = () => {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  const navLinks = [
-    { name: 'Home', path: '/' },
-    { name: 'About Us', path: '/about' },
-    { name: 'Gallery', path: '/gallery' },
-    { name: 'Blog', path: '/blog' },
-  ]
+  // Scroll spy to update active section automatically
+  useEffect(() => {
+    if (location.pathname !== '/') return;
 
-  const isActive = (path: string) => location.pathname === path
+    const handleIntersect = (entries: IntersectionObserverEntry[]) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const path = `#${entry.target.id}`;
+          setActiveSection(path);
+          window.history.replaceState(null, '', `/${path === '#home' ? '' : path}`);
+        }
+      });
+    };
+
+    const observer = new IntersectionObserver(handleIntersect, {
+      root: null,
+      rootMargin: '-20% 0px -70% 0px',
+      threshold: 0
+    });
+
+    navLinks.forEach(link => {
+      if (link.path.startsWith('#')) {
+        const el = document.getElementById(link.path.substring(1));
+        if (el) observer.observe(el);
+      }
+    });
+
+    return () => observer.disconnect();
+  }, [location.pathname]);
+
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, path: string) => {
+    if (location.pathname !== '/') {
+      // Allow default Link behavior to route back to home with hash
+      return;
+    }
+    
+    if (path.startsWith('#')) {
+      e.preventDefault();
+      const element = document.getElementById(path.substring(1));
+      if (element) {
+        // Adjust scroll position for the fixed navbar height (approx 80px)
+        const y = element.getBoundingClientRect().top + window.scrollY - 100;
+        window.scrollTo({ top: y, behavior: 'smooth' });
+        window.history.pushState(null, '', `/${path}`);
+        setActiveSection(path);
+      } else if (path === '#home') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        window.history.pushState(null, '', '/');
+        setActiveSection(path);
+      }
+    }
+    setIsOpen(false);
+  }
+
+  // Active state based on local state spy
+  const isActive = (path: string) => {
+    if (location.pathname !== '/') return false;
+    return activeSection === path;
+  }
 
   return (
     <div className="sticky top-0 z-50">
@@ -47,7 +107,8 @@ export const Navbar = () => {
               {navLinks.map((link) => (
                 <Link
                   key={link.name}
-                  to={link.path}
+                  to={`/${link.path}`}
+                  onClick={(e) => handleNavClick(e, link.path)}
                   className={`${
                     isActive(link.path)
                       ? 'text-adventure-orange border-b-2 border-adventure-orange'
@@ -85,8 +146,8 @@ export const Navbar = () => {
             {navLinks.map((link) => (
               <Link
                 key={link.name}
-                to={link.path}
-                onClick={() => setIsOpen(false)}
+                to={`/${link.path}`}
+                onClick={(e) => handleNavClick(e, link.path)}
                 className={`${
                   isActive(link.path)
                     ? 'bg-adventure-orange/10 text-adventure-orange'
