@@ -1,7 +1,8 @@
 import { Link, useLocation } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowRight, MapPin, Calendar as CalendarIcon, Users } from 'lucide-react'
 import { useState, useEffect } from 'react'
+import { BangladeshMap } from '../../components/BangladeshMap'
 
 // Extended Mock Data for Admin Panel
 export const mockEvents = Array.from({ length: 12 }).map((_, i) => ({
@@ -21,6 +22,14 @@ export const mockEvents = Array.from({ length: 12 }).map((_, i) => ({
   spots: 50,
   spotsLeft: Math.floor(Math.random() * 20) + 1
 }));
+
+export const mockHeroImages = [
+  '/logo.jpg',
+  'https://images.unsplash.com/photo-1523987355523-c7b5b0dd90a7?q=80&w=800&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1506197603052-3cc9c3a201bd?q=80&w=800&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1501555088652-0f6bbf352816?q=80&w=800&auto=format&fit=crop'
+];
+
 
 const mockBlogs = Array.from({ length: 10 }).map((_, i) => ({
   id: i + 1,
@@ -46,6 +55,7 @@ export const HomePage = () => {
   const [visibleEvents, setVisibleEvents] = useState(6);
   const [visibleBlogs, setVisibleBlogs] = useState(4);
   const [visibleGallery, setVisibleGallery] = useState(6);
+  const [currentImageIdx, setCurrentImageIdx] = useState(0);
   const location = useLocation();
 
   useEffect(() => {
@@ -60,10 +70,17 @@ export const HomePage = () => {
     }
   }, [location]);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImageIdx((prev) => (prev + 1) % mockHeroImages.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section id="home" className="relative min-h-[90vh] flex flex-col lg:flex-row bg-transparent">
+      <section id="home" className="relative min-h-[90vh] flex flex-col-reverse lg:flex-row bg-transparent">
         {/* Left Side (Text Area) */}
         <div className="w-full lg:w-1/2 flex items-center justify-center px-2 py-4 sm:p-8 relative z-10">
           <div className="text-left max-w-xl w-full mx-auto lg:ml-auto lg:mr-8 mt-2 sm:mt-10 lg:mt-0">
@@ -101,16 +118,38 @@ export const HomePage = () => {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="relative w-full max-w-lg aspect-square lg:aspect-[4/3] xl:aspect-square mx-auto rounded-3xl overflow-hidden shadow-2xl border-4 border-white group bg-white"
           >
-            <img 
-              src="/logo.jpg" 
-              alt="OviJatrik Hero Banner" 
-              className="w-full h-full object-contain p-4 transition-transform duration-700 group-hover:scale-105" 
-            />
+            <div className="relative w-full h-full overflow-hidden flex items-center justify-center bg-gray-100">
+              <AnimatePresence mode="wait">
+                <motion.img 
+                  key={currentImageIdx}
+                  initial={{ opacity: 0, scale: 1.05 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.5 }}
+                  src={mockHeroImages[currentImageIdx]} 
+                  alt={`Hero Banner ${currentImageIdx + 1}`} 
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                />
+              </AnimatePresence>
+            </div>
+            
             <div className="absolute inset-0 bg-gradient-to-t from-[#1B4332]/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10" />
             
             <div className="absolute bottom-0 left-0 w-full p-8 z-20 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
               <p className="text-[#e0a82e] font-medium tracking-wider uppercase text-sm mb-2">Since 2018</p>
               <h3 className="text-3xl font-bold text-white">RUET Adventure Club</h3>
+            </div>
+
+            {/* Carousel Indicators */}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex gap-2">
+              {mockHeroImages.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setCurrentImageIdx(idx)}
+                  className={`w-2 h-2 rounded-full transition-all ${idx === currentImageIdx ? 'bg-adventure-orange w-6' : 'bg-white/50 hover:bg-white'}`}
+                  aria-label={`Go to slide ${idx + 1}`}
+                />
+              ))}
             </div>
           </motion.div>
         </div>
@@ -161,6 +200,17 @@ export const HomePage = () => {
               <p className="text-[10px] sm:text-base text-slate-600 leading-tight">Years Legacy</p>
             </motion.div>
           </div>
+        </div>
+      </section>
+
+      {/* Interactive Map Section */}
+      <section id="map" className="py-10 sm:py-16 relative z-10 scroll-mt-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-8 sm:mb-12">
+            <h2 className="text-4xl sm:text-5xl font-extrabold text-[#1B4332] font-garamond mb-2 sm:mb-4">Explore Our <span className="text-adventure-orange">Locations</span></h2>
+            <p className="text-sm sm:text-lg text-slate-600">Click a pin to discover events &amp; galleries across Bangladesh.</p>
+          </div>
+          <BangladeshMap />
         </div>
       </section>
 

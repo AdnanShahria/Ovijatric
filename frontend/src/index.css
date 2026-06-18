@@ -77,3 +77,20 @@
     background-size: cover;
   }
 }
+
+/* Custom Leaflet Map Styles */
+.leaflet-popup-content-wrapper, .leaflet-popup-content {
+  padding: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+}
+
+.leaflet-popup-tip-container {
+  display: none !important; /* hide default tip to use custom shadow or design */
+}
+
+.leaflet-container {
+  background: transparent !important;
+}
