@@ -84,6 +84,10 @@ export const Navbar = () => {
     return activeSection === path;
   }
 
+  if (location.pathname.startsWith('/events/')) {
+    return null;
+  }
+
   return (
     <div className="sticky top-0 z-50">
       <nav className={`w-full bg-[#eef5ee] rounded-b-3xl transition-all duration-500 ease-in-out ${

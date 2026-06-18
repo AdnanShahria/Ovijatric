@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Image as ImageIcon, Calendar, LogOut, Menu, X } from 'lucide-react'
+import { LayoutDashboard, Image as ImageIcon, Calendar, LogOut, Menu, X, BookOpen, Info, MapPin } from 'lucide-react'
 import { useState } from 'react'
 
 export function AppLayout() {
@@ -9,13 +9,17 @@ export function AppLayout() {
 
   const handleLogout = () => {
     localStorage.removeItem('auth_token')
-    window.location.href = '/auth'
+    window.location.href = '/admin/auth'
   }
 
   const navItems = [
     { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
     { name: 'Banners', path: '/admin/banners', icon: ImageIcon },
     { name: 'Events', path: '/admin/events', icon: Calendar },
+    { name: 'Gallery', path: '/admin/gallery', icon: ImageIcon },
+    { name: 'Blog', path: '/admin/blog', icon: BookOpen },
+    { name: 'Map Pins', path: '/admin/map-pins', icon: MapPin },
+    { name: 'About Us', path: '/admin/about', icon: Info },
   ]
 
   return (

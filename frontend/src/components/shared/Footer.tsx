@@ -1,7 +1,13 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Facebook, Instagram, Twitter, Mail, MapPin, Phone } from 'lucide-react';
 
 export const Footer = () => {
+  const location = useLocation();
+
+  if (location.pathname.startsWith('/events/')) {
+    return null;
+  }
+
   return (
     <footer className="pt-16 pb-8 border-t border-[#1B4332]/10 relative z-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

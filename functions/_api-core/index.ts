@@ -27,7 +27,7 @@ export default {
 
     // Health check
     if (url.pathname === "/status") {
-      return new Response(JSON.stringify({ status: "ok", db: !!env.TURSO_DATABASE_URL }), {
+      return new Response(JSON.stringify({ status: "ok", dbUrl: env.TURSO_DATABASE_URL }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       })
@@ -38,7 +38,8 @@ export default {
     let dbClient: any = null
     if (env.TURSO_DATABASE_URL && env.TURSO_AUTH_TOKEN) {
       try {
-        dbClient = createClient({ url: env.TURSO_DATABASE_URL, authToken: env.TURSO_AUTH_TOKEN })
+        const url = env.TURSO_DATABASE_URL.replace('libsql://', 'https://')
+        dbClient = createClient({ url, authToken: env.TURSO_AUTH_TOKEN })
         db = drizzle(dbClient)
       } catch (e) {
         console.error("Failed to create DB client:", e)

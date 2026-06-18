@@ -13,10 +13,17 @@ export default defineConfig({
             '/auth': '/auth.html',
           }
           if (req.url) {
-            for (const [prefix, html] of Object.entries(rewrites)) {
-              if (req.url.startsWith(prefix) && !req.url.includes('.')) {
-                req.url = html
-                break
+            const url = new URL(req.url, 'http://localhost')
+            const pathname = url.pathname
+            const isProxyPath = pathname.startsWith('/api') || pathname.startsWith('/auth/')
+            const isGet = req.method === 'GET' || req.method === 'HEAD'
+
+            if (isGet && !isProxyPath) {
+              for (const [prefix, html] of Object.entries(rewrites)) {
+                if (pathname.startsWith(prefix) && !pathname.includes('.')) {
+                  req.url = html
+                  break
+                }
               }
             }
           }

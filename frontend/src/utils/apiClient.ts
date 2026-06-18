@@ -82,3 +82,85 @@ export async function dynamicDelete(table: string, filters: Record<string, strin
   Object.entries(filters).forEach(([k, v]) => params.append(`eq_${k}`, v))
   await apiDelete(`/api/dynamic/${table}?${params.toString()}`)
 }
+
+import imageCompression from 'browser-image-compression';
+
+async function cropToAspectRatio(file: File, aspectRatio: number): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return reject(new Error('Canvas not supported'));
+
+      let { width, height } = img;
+      const currentRatio = width / height;
+
+      let newWidth = width;
+      let newHeight = height;
+      let offsetX = 0;
+      let offsetY = 0;
+
+      if (currentRatio > aspectRatio) {
+        newWidth = height * aspectRatio;
+        offsetX = (width - newWidth) / 2;
+      } else if (currentRatio < aspectRatio) {
+        newHeight = width / aspectRatio;
+        offsetY = (height - newHeight) / 2;
+      }
+
+      console.log(`Image Ratio Fixation: Original: ${width}x${height} (Ratio: ${currentRatio.toFixed(2)}) -> Fixed: ${newWidth}x${newHeight} (Ratio: ${(newWidth/newHeight).toFixed(2)}, Target: ${aspectRatio.toFixed(2)})`);
+
+      canvas.width = newWidth;
+      canvas.height = newHeight;
+      ctx.drawImage(img, offsetX, offsetY, newWidth, newHeight, 0, 0, newWidth, newHeight);
+
+      canvas.toBlob((blob) => {
+        if (!blob) return reject(new Error('Canvas to blob failed'));
+        const croppedFile = new File([blob], file.name, { type: file.type });
+        resolve(croppedFile);
+      }, file.type);
+    };
+    img.onerror = () => reject(new Error('Image load failed'));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+export async function uploadImage(file: File, aspectRatio?: number): Promise<{ success: boolean; url?: string; error?: string }> {
+  try {
+    let processedFile = file;
+    console.log(`Image size before processing: ${(file.size / 1024).toFixed(2)} KB`);
+
+    if (aspectRatio) {
+      processedFile = await cropToAspectRatio(processedFile, aspectRatio);
+    }
+
+    const options = {
+      maxSizeMB: 1,
+      maxWidthOrHeight: 1920,
+      useWebWorker: true
+    };
+    processedFile = await imageCompression(processedFile, options);
+    console.log(`Image size after processing: ${(processedFile.size / 1024).toFixed(2)} KB`);
+
+    const formData = new FormData()
+    formData.append('image', processedFile)
+    const token = localStorage.getItem('auth_token')
+    const headers: Record<string, string> = {}
+    if (token) headers['Authorization'] = `Bearer ${token}`
+
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      headers,
+      body: formData
+    })
+
+    const json = await res.json()
+    if (res.ok && json.success) {
+      return { success: true, url: json.url }
+    }
+    return { success: false, error: json.error || 'Failed to upload image' }
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Image processing failed' }
+  }
+}

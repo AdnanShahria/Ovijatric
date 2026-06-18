@@ -1,0 +1,55 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1781786232450,
+      "tag": "0000_narrow_kronos",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1781787290152,
+      "tag": "0001_safe_enchantress",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1781789337763,
+      "tag": "0002_calm_mauler",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1781790467628,
+      "tag": "0003_calm_lightspeed",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1781792200765,
+      "tag": "0004_youthful_doomsday",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1781794096439,
+      "tag": "0005_dark_madripoor",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1781795193568,
+      "tag": "0006_funny_jack_power",
+      "breakpoints": true
+    }
+  ]
+}

@@ -7,7 +7,7 @@ import { MapPin, Calendar, Image as ImageIcon } from 'lucide-react'
 //  When admin panel is ready, replace MOCK_MAP_PINS with a fetch() from your API
 // ─────────────────────────────────────────────────────────────────────────────
 export interface AdminMapPin {
-  id: number
+  id: number | string
   name: string
   lat: number               // Real GPS latitude  — admin enters this
   lng: number               // Real GPS longitude — admin enters this
@@ -16,20 +16,12 @@ export interface AdminMapPin {
   details: string
   image: string
   date: string
-  linkedEventId?: number
-  linkedGalleryIds?: number[]
+  linkedEventId?: number | string
+  linkedGalleryIds?: number[] | string
   linkedPlaceSlug?: string
 }
 
-export const MOCK_MAP_PINS: AdminMapPin[] = [
-  { id: 1, name: 'Rangpur',    lat: 25.7439, lng: 89.2752, type: 'event',   title: 'Rangpur Expedition Camp', details: 'Annual adventure camp in the northern plains.',     image: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=400&auto=format&fit=crop', date: 'Aug 2026', linkedEventId: 1 },
-  { id: 2, name: 'Sylhet',     lat: 24.8949, lng: 91.8687, type: 'event',   title: 'Sylhet Tea Garden Trek',  details: 'Trekking through tea estates and waterfalls.',     image: 'https://images.unsplash.com/photo-1552674605-15c2145efa38?q=80&w=400&auto=format&fit=crop', date: 'Sep 2026', linkedEventId: 2 },
-  { id: 3, name: 'Mymensingh', lat: 24.7471, lng: 90.4203, type: 'event',   title: 'Mymensingh River Camp',   details: 'Camping by the Brahmaputra river tributaries.',     image: 'https://images.unsplash.com/photo-1523987355523-c7b5b0dd90a7?q=80&w=400&auto=format&fit=crop', date: 'Oct 2026', linkedEventId: 3 },
-  { id: 4, name: 'Khulna',     lat: 22.8456, lng: 89.5403, type: 'gallery', title: 'Sundarbans Safari',        details: 'Kayaking through the mangrove forests.',            image: 'https://images.unsplash.com/photo-1506197603052-3cc9c3a201bd?q=80&w=400&auto=format&fit=crop', date: 'Nov 2026', linkedGalleryIds: [1, 2, 3] },
-  { id: 5, name: 'Barishal',   lat: 22.7010, lng: 90.3535, type: 'event',   title: 'Southern River Delta',    details: 'Navigating the waterways of Barishal.',            image: 'https://images.unsplash.com/photo-1501555088652-0f6bbf352816?q=80&w=400&auto=format&fit=crop', date: 'Dec 2026', linkedEventId: 5 },
-  { id: 6, name: 'Chattogram', lat: 22.3569, lng: 91.7832, type: 'event',   title: 'Hill Tracts Expedition',  details: 'Trekking through CHT hills and bamboo forests.',   image: 'https://images.unsplash.com/photo-1511576661531-b34d7da5d0fa?q=80&w=400&auto=format&fit=crop', date: 'Jan 2027', linkedEventId: 6 },
-  { id: 7, name: 'Rajshahi',   lat: 24.3636, lng: 88.6241, type: 'place',   title: 'RUET – Ovijatrik HQ',    details: 'Home base of Ovijatrik at RUET, Rajshahi.',        image: '/logo.jpg', date: 'Founded 2018', linkedPlaceSlug: 'ruet-hq' },
-]
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Geographic projection  (equirectangular, good enough for this scale)
@@ -138,8 +130,32 @@ const DIVISION_LABELS = [
 export function BangladeshMap() {
   const [outline, setOutline]     = useState<any>(null)
   const [districts, setDistricts] = useState<any>(null)   // polygon features
-  const [activePin, setActivePin] = useState<number | null>(null)
+  const [activePin, setActivePin] = useState<number | string | null>(null)
+  const [mapPins, setMapPins] = useState<AdminMapPin[]>([])
   const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    import('../utils/apiClient').then(({ dynamicGet }) => {
+      (dynamicGet as any)('map_pins').then((data: any) => {
+        if (data && data.length > 0) {
+          setMapPins(data.map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            lat: p.lat,
+            lng: p.lng,
+            type: p.type as any,
+            title: p.title,
+            details: p.details || '',
+            image: p.image_url || '',
+            date: p.date_text || '',
+            linkedEventId: p.linked_event_id,
+            linkedGalleryIds: p.linked_gallery_ids ? JSON.parse(p.linked_gallery_ids) : undefined,
+            linkedPlaceSlug: p.linked_place_slug
+          })))
+        }
+      }).catch((err: any) => console.error("Failed to load map pins:", err))
+    })
+  }, [])
 
   // Load country outline (MultiPolygon)
   useEffect(() => {
@@ -236,7 +252,7 @@ export function BangladeshMap() {
         ))}
 
         {/* ── Layer 6: Pins ─────────────────────────────────────────────── */}
-        {MOCK_MAP_PINS.map((pin) => {
+        {mapPins.map((pin) => {
           const [x, y] = project(pin.lat, pin.lng)
           const s = PIN_STYLE[pin.type]
           const isActive = activePin === pin.id
@@ -252,23 +268,50 @@ export function BangladeshMap() {
       </svg>
 
       {/* ── Popup cards ───────────────────────────────────────────────────── */}
-      {MOCK_MAP_PINS.map((pin) => {
-        if (activePin !== pin.id) return null
-        const [x, y] = project(pin.lat, pin.lng)
-        const xPct = (x / SVG_W) * 100
-        const yPct = (y / SVG_H) * 100
-        const s = PIN_STYLE[pin.type]
-        return (
-          <AnimatePresence key={`popup-${pin.id}`}>
+      <AnimatePresence>
+        {mapPins.map((pin) => {
+          if (activePin !== pin.id) return null
+          const [x, y] = project(pin.lat, pin.lng)
+          const xPct = (x / SVG_W) * 100
+          const yPct = (y / SVG_H) * 100
+          const s = PIN_STYLE[pin.type]
+
+          const isNearTop = y < 220;
+          const isNearLeft = x < 130;
+          const isNearRight = x > (SVG_W - 130);
+
+          let xOffset = "-50%";
+          let arrowLeft = "50%";
+          if (isNearLeft) {
+            xOffset = "-15%";
+            arrowLeft = "15%";
+          } else if (isNearRight) {
+            xOffset = "-85%";
+            arrowLeft = "85%";
+          }
+
+          const yOffsetInitial = isNearTop ? "10%" : "-90%";
+          const yOffsetAnimate = isNearTop ? "15px" : "calc(-100% - 15px)";
+          const originClass = isNearTop ? "origin-top" : "origin-bottom";
+
+          let arrowClasses = "absolute w-3 h-3 bg-white/90 backdrop-blur-md rotate-45 border-white/40 ";
+          if (isNearTop) {
+            arrowClasses += "-top-1.5 border-t border-l";
+          } else {
+            arrowClasses += "-bottom-1.5 border-b border-r";
+          }
+
+          return (
             <motion.div
-              initial={{ opacity: 0, y: 10, scale: 0.92 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.92 }}
+              key={`popup-${pin.id}`}
+              initial={{ opacity: 0, y: yOffsetInitial, x: xOffset, scale: 0.92 }}
+              animate={{ opacity: 1, y: yOffsetAnimate, x: xOffset, scale: 1 }}
+              exit={{ opacity: 0, y: yOffsetInitial, x: xOffset, scale: 0.92 }}
               transition={{ duration: 0.18 }}
-              className="absolute z-50 pointer-events-none"
-              style={{ left: `${xPct}%`, top: `${yPct}%`, transform: 'translate(-50%, calc(-100% - 20px))' }}
+              className={`absolute z-50 pointer-events-none ${originClass}`}
+              style={{ left: `${xPct}%`, top: `${yPct}%`, filter: `drop-shadow(0 4px 20px ${s.ring.replace('0.25', '0.6')})` }}
             >
-              <div className="w-52 sm:w-60 bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-100">
+              <div className="w-52 sm:w-60 bg-white/90 backdrop-blur-md rounded-2xl overflow-hidden border border-white/40">
                 <div className="h-28 w-full relative">
                   <img src={pin.image} alt={pin.title} className="w-full h-full object-cover" />
                   <span className={`absolute top-2 left-2 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${s.badge}`}>{pin.type}</span>
@@ -295,15 +338,18 @@ export function BangladeshMap() {
                     </div>
                   </div>
                 </div>
-                <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white rotate-45 border-b border-r border-slate-100" />
+                <div 
+                  className={`${arrowClasses} -translate-x-1/2`} 
+                  style={{ left: arrowLeft }} 
+                />
               </div>
             </motion.div>
-          </AnimatePresence>
-        )
-      })}
+          )
+        })}
+      </AnimatePresence>
 
       {/* ── Legend ────────────────────────────────────────────────────────── */}
-      <div className="absolute bottom-2 right-0 flex flex-col gap-1.5 text-[10px] font-semibold">
+      <div className="absolute bottom-2 left-2 flex flex-col gap-1.5 text-[10px] font-semibold">
         {(['event', 'gallery', 'place'] as const).map((type) => (
           <div key={type} className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: PIN_STYLE[type].dot }} />

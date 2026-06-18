@@ -3,25 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowRight, MapPin, Calendar as CalendarIcon, Users } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { BangladeshMap } from '../../components/BangladeshMap'
-
-// Extended Mock Data for Admin Panel
-export const mockEvents = Array.from({ length: 12 }).map((_, i) => ({
-  id: i + 1,
-  title: `Expedition ${i + 1}: ${['Keokradong', 'Tazing Dong', 'Sajek', 'Coxs Bazar', 'Sylhet', 'Sundarbans'][i % 6]}`,
-  date: `August ${10 + i}, 2026`,
-  location: ['Bandarban', 'Bandarban', 'Khagrachari', 'Coxs Bazar', 'Sylhet', 'Khulna'][i % 6],
-  image: `https://images.unsplash.com/photo-${[
-    '1464822759023-fed622ff2c3b',
-    '1552674605-15c2145efa38',
-    '1523987355523-c7b5b0dd90a7',
-    '1506197603052-3cc9c3a201bd',
-    '1501555088652-0f6bbf352816',
-    '1511576661531-b34d7da5d0fa'
-  ][i % 6]}?q=80&w=800&auto=format&fit=crop`,
-  category: ['Trekking', 'Running', 'Camping', 'Cycling', 'Trekking', 'Camping'][i % 6],
-  spots: 50,
-  spotsLeft: Math.floor(Math.random() * 20) + 1
-}));
+import { dynamicGet } from '../../utils/apiClient'
 
 export const mockHeroImages = [
   '/logo.jpg',
@@ -30,33 +12,103 @@ export const mockHeroImages = [
   'https://images.unsplash.com/photo-1501555088652-0f6bbf352816?q=80&w=800&auto=format&fit=crop'
 ];
 
-
-const mockBlogs = Array.from({ length: 10 }).map((_, i) => ({
-  id: i + 1,
-  title: `Adventure Story ${i + 1}: Lessons learned from the wild`,
-  date: `May ${10 + i}, 2026`,
-  readTime: `${Math.floor(Math.random() * 10) + 3} min read`,
-}));
-
-const mockGallery = Array.from({ length: 15 }).map((_, i) => ({
-  id: i + 1,
-  image: `https://images.unsplash.com/photo-${[
-    '1464822759023-fed622ff2c3b',
-    '1552674605-15c2145efa38',
-    '1523987355523-c7b5b0dd90a7',
-    '1506197603052-3cc9c3a201bd',
-    '1501555088652-0f6bbf352816',
-    '1511576661531-b34d7da5d0fa'
-  ][i % 6]}?q=80&w=800&auto=format&fit=crop`,
-  alt: `Gallery Image ${i + 1}`
-}));
-
 export const HomePage = () => {
   const [visibleEvents, setVisibleEvents] = useState(6);
   const [visibleBlogs, setVisibleBlogs] = useState(4);
   const [visibleGallery, setVisibleGallery] = useState(6);
   const [currentImageIdx, setCurrentImageIdx] = useState(0);
   const location = useLocation();
+
+  const [events, setEvents] = useState<any[]>([])
+  const [blogs, setBlogs] = useState<any[]>([])
+  const [gallery, setGallery] = useState<any[]>([])
+  const [aboutText, setAboutText] = useState('')
+  const [heroBanners, setHeroBanners] = useState<any[]>(mockHeroImages.map(url => ({ image_url: url })))
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [evs, gals, blgs, about, bannerData] = await Promise.all([
+          dynamicGet('events', { order: 'date', dir: 'desc' }),
+          dynamicGet('gallery', { order: 'uploaded_at', dir: 'desc' }),
+          dynamicGet('blog_posts', { order: 'published_at', dir: 'desc' }),
+          dynamicGet('settings', { eq: { key: 'about_us_description' } }),
+          dynamicGet('banners', { eq: { is_active: 1 }, order: 'order_index', dir: 'asc' })
+        ])
+        
+        if (evs && evs.length > 0) {
+          setEvents(evs.map((e: any) => {
+            let tagsArray: string[] = [];
+            if (e.tags) {
+              tagsArray = e.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+            }
+            return {
+            id: e.id,
+            title: e.title,
+            titleBn: e.title_bn,
+            date: new Date(Number(e.date)).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }),
+            location: e.location,
+            fee: e.fee,
+            totalSpots: e.total_spots,
+            image: e.image_url || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop',
+            category: 'Expedition',
+            tags: tagsArray,
+            spotsLeft: e.total_spots || 'Limited'
+          }}))
+        } else {
+          setEvents([])
+        }
+
+        if (gals && gals.length > 0) {
+          setGallery(gals.map(g => ({
+            id: g.id,
+            image: g.image_url,
+            alt: g.caption || 'Gallery Image'
+          })))
+        } else {
+          setGallery([])
+        }
+
+        if (blgs && blgs.length > 0) {
+          setBlogs(blgs.map(b => ({
+            id: b.id,
+            title: b.title,
+            date: new Date(Number(b.published_at)).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }),
+            readTime: `${Math.max(1, Math.floor((b.content || '').length / 500))} min read`,
+            content: b.content
+          })))
+        } else {
+          setBlogs([])
+        }
+
+        if (about && about.length > 0) {
+          setAboutText(about[0].value)
+        } else {
+          setAboutText('Founded in 2018, the RUET Adventure Club (Ovijatrik) is the premier adventure organization of Rajshahi University of Engineering & Technology. We believe in pushing boundaries, exploring the unknown, and fostering a spirit of teamwork and resilience among our members.')
+        }
+
+        if (bannerData && bannerData.length > 0) {
+          const now = Date.now();
+          const validBanners = bannerData.filter((b: any) => {
+            const start = b.start_date ? Number(b.start_date) : 0;
+            const end = b.end_date ? Number(b.end_date) : Infinity;
+            return now >= start && now <= end;
+          });
+          setHeroBanners(validBanners.length > 0 ? validBanners : mockHeroImages.map(url => ({ image_url: url })))
+        } else {
+          setHeroBanners(mockHeroImages.map(url => ({ image_url: url })))
+        }
+      } catch (err) {
+        console.error('Failed to load dynamic homepage content:', err)
+        setEvents([])
+        setGallery([])
+        setBlogs([])
+        setAboutText('Founded in 2018, the RUET Adventure Club (Ovijatrik) is the premier adventure organization of Rajshahi University of Engineering & Technology. We believe in pushing boundaries, exploring the unknown, and fostering a spirit of teamwork and resilience among our members.')
+        setHeroBanners(mockHeroImages.map(url => ({ image_url: url })))
+      }
+    }
+    loadData()
+  }, [])
 
   useEffect(() => {
     if (location.hash) {
@@ -71,11 +123,12 @@ export const HomePage = () => {
   }, [location]);
 
   useEffect(() => {
+    if (heroBanners.length === 0) return;
     const interval = setInterval(() => {
-      setCurrentImageIdx((prev) => (prev + 1) % mockHeroImages.length);
-    }, 3000);
+      setCurrentImageIdx((prev) => (prev + 1) % heroBanners.length);
+    }, 5000); // 5s duration per banner
     return () => clearInterval(interval);
-  }, []);
+  }, [heroBanners.length]);
 
   return (
     <div className="min-h-screen">
@@ -120,29 +173,38 @@ export const HomePage = () => {
           >
             <div className="relative w-full h-full overflow-hidden flex items-center justify-center bg-gray-100">
               <AnimatePresence mode="wait">
-                <motion.img 
-                  key={currentImageIdx}
-                  initial={{ opacity: 0, scale: 1.05 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.5 }}
-                  src={mockHeroImages[currentImageIdx]} 
-                  alt={`Hero Banner ${currentImageIdx + 1}`} 
-                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
-                />
+                {heroBanners.length > 0 && (
+                  <motion.img 
+                    key={currentImageIdx}
+                    initial={{ opacity: 0, scale: 1.05 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 1.5 }} // Custom fading transition time
+                    src={heroBanners[currentImageIdx].image_url} 
+                    alt={`Hero Banner ${currentImageIdx + 1}`} 
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                  />
+                )}
               </AnimatePresence>
+              
+              {/* Show Topic on Hover */}
+              {heroBanners[currentImageIdx]?.topic && (
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 flex flex-col items-center justify-center p-6 text-center backdrop-blur-sm">
+                  <span className="text-adventure-orange font-bold tracking-widest uppercase text-sm mb-2">Featured Topic</span>
+                  <h2 className="text-white text-3xl sm:text-5xl font-extrabold">{heroBanners[currentImageIdx].topic}</h2>
+                </div>
+              )}
             </div>
             
-            <div className="absolute inset-0 bg-gradient-to-t from-[#1B4332]/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#1B4332]/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-[5]" />
             
-            <div className="absolute bottom-0 left-0 w-full p-8 z-20 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
+            <div className="absolute bottom-0 left-0 w-full p-8 z-20 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none">
               <p className="text-[#e0a82e] font-medium tracking-wider uppercase text-sm mb-2">Since 2018</p>
               <h3 className="text-3xl font-bold text-white">RUET Adventure Club</h3>
             </div>
 
-            {/* Carousel Indicators */}
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex gap-2">
-              {mockHeroImages.map((_, idx) => (
+              {heroBanners.map((_, idx) => (
                 <button
                   key={idx}
                   onClick={() => setCurrentImageIdx(idx)}
@@ -223,36 +285,52 @@ export const HomePage = () => {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-8">
-            {mockEvents.slice(0, visibleEvents).map((event) => (
-              <div key={event.id} className="bg-white rounded-xl sm:rounded-2xl overflow-hidden shadow-md sm:shadow-lg border border-[#1B4332]/10 group hover:-translate-y-2 hover:shadow-2xl transition-all duration-300 flex flex-row sm:flex-col">
-                <div className="relative w-1/3 sm:w-full min-h-[110px] sm:h-48 overflow-hidden shrink-0">
-                  <img src={event.image} alt={event.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-                  <div className="absolute top-2 left-2 sm:top-4 sm:left-auto sm:right-4 bg-white/90 backdrop-blur-sm px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold text-adventure-orange">
+            {events.slice(0, visibleEvents).map((event) => (
+              <Link key={event.id} to={`/events/${event.id}`} className="block bg-white rounded-2xl overflow-hidden shadow-lg border border-[#1B4332]/10 group hover:-translate-y-2 hover:shadow-2xl transition-all duration-300 flex flex-col">
+                <div className="relative w-full overflow-hidden shrink-0 bg-slate-100 flex items-center justify-center" style={{ aspectRatio: '16/9' }}>
+                  <img src={event.image} alt={event.title} className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-700" />
+                  <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-adventure-orange">
                     {event.category}
                   </div>
+                  {event.tags && event.tags.length > 0 && (
+                    <div className="absolute bottom-3 left-3 flex flex-wrap gap-1.5">
+                      {event.tags.map((tag: string, idx: number) => (
+                        <span key={idx} className="bg-black/60 backdrop-blur-sm text-white px-2 py-0.5 rounded-md text-[10px] font-semibold tracking-wide uppercase">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <div className="p-3 sm:p-6 flex flex-col flex-1 justify-center">
-                  <h3 className="text-sm sm:text-xl font-bold text-[#1B4332] font-garamond mb-1 sm:mb-2 line-clamp-1 leading-tight">{event.title}</h3>
-                  <div className="flex flex-col gap-0.5 sm:gap-2 text-[11px] sm:text-sm text-slate-600 mb-2 sm:mb-6">
-                    <div className="flex items-center gap-1 sm:gap-2">
-                      <span className="w-3 h-3 sm:w-4 sm:h-4 text-adventure-orange shrink-0">📅</span> <span className="truncate">{event.date}</span>
+                <div className="p-3 sm:p-4 flex flex-col flex-1 justify-center">
+                  <h3 className="text-base sm:text-lg font-bold text-[#1B4332] font-garamond mb-1.5 line-clamp-1 leading-tight">
+                    {event.title} {event.titleBn && <span className="text-slate-500 font-normal">({event.titleBn})</span>}
+                  </h3>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] sm:text-xs text-slate-600 mb-4">
+                    <div className="flex items-center gap-1">
+                      <span className="w-3.5 h-3.5 text-adventure-orange shrink-0">📅</span> <span className="whitespace-nowrap">{event.date}</span>
                     </div>
-                    <div className="flex items-center gap-1 sm:gap-2">
-                      <span className="w-3 h-3 sm:w-4 sm:h-4 text-adventure-orange shrink-0">📍</span> <span className="truncate">{event.location}</span>
+                    <div className="flex items-center gap-1">
+                      <span className="w-3.5 h-3.5 text-adventure-orange shrink-0">📍</span> <span className="whitespace-nowrap">{event.location}</span>
                     </div>
+                    {event.fee && (
+                      <div className="flex items-center gap-1">
+                        <span className="w-3.5 h-3.5 text-adventure-orange shrink-0">💵</span> <span className="whitespace-nowrap">Fee: {event.fee}</span>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex items-center justify-between mt-auto">
-                    <span className="text-[10px] sm:text-sm font-medium text-slate-500">{event.spotsLeft} spots left</span>
-                    <Link to={`/events/${event.id}`} className="px-3 py-1 sm:px-4 sm:py-2 bg-adventure-orange/10 text-adventure-orange text-[10px] sm:text-base font-semibold rounded-md sm:rounded-lg hover:bg-adventure-orange hover:text-white transition-colors">
+                  <div className="flex items-center justify-between mt-auto pt-1">
+                    <span className="text-xs sm:text-sm font-medium text-slate-500">{event.spotsLeft} spots left</span>
+                    <span className="px-3 py-1.5 bg-adventure-orange/10 text-adventure-orange text-xs sm:text-sm font-semibold rounded-md group-hover:bg-adventure-orange group-hover:text-white transition-colors">
                       Details
-                    </Link>
+                    </span>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
 
-          {visibleEvents < mockEvents.length && (
+          {visibleEvents < events.length && (
             <div className="mt-12 text-center">
               <button 
                 onClick={() => setVisibleEvents(prev => prev + 6)}
@@ -274,7 +352,7 @@ export const HomePage = () => {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {mockGallery.slice(0, visibleGallery).map((img) => (
+            {gallery.slice(0, visibleGallery).map((img) => (
               <Link to={`/gallery/${img.id}`} key={img.id} className="relative aspect-square overflow-hidden rounded-2xl group block">
                 <img src={img.image} alt={img.alt} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -284,7 +362,7 @@ export const HomePage = () => {
             ))}
           </div>
 
-          {visibleGallery < mockGallery.length && (
+          {visibleGallery < gallery.length && (
             <div className="mt-12 text-center">
               <button 
                 onClick={() => setVisibleGallery(prev => prev + 6)}
@@ -306,7 +384,7 @@ export const HomePage = () => {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-            {mockBlogs.slice(0, visibleBlogs).map((post) => (
+            {blogs.slice(0, visibleBlogs).map((post) => (
               <Link key={post.id} to={`/blog/${post.id}`} className="group block bg-white p-4 sm:p-8 rounded-2xl sm:rounded-3xl shadow-md hover:shadow-xl hover:-translate-y-1 border border-[#1B4332]/5 transition-all duration-300">
                 <div className="flex items-center gap-2 sm:gap-4 mb-2 sm:mb-4 text-xs sm:text-sm text-slate-500 font-medium">
                   <span className="bg-adventure-orange/10 text-adventure-orange px-2 py-0.5 sm:px-3 sm:py-1 rounded-full">{post.date}</span>
@@ -315,14 +393,13 @@ export const HomePage = () => {
                 </div>
                 <h3 className="text-lg sm:text-2xl font-bold text-[#1B4332] group-hover:text-adventure-orange transition-colors line-clamp-2">{post.title}</h3>
                 <p className="mt-2 sm:mt-4 text-sm sm:text-base text-slate-600 line-clamp-2">
-                  Adventure brings unexpected challenges, but with the right mindset and preparation, you can conquer any trail. 
-                  Read on to discover the incredible experiences our members faced on this journey.
+                  {post.content ? post.content.substring(0, 150) + '...' : 'Adventure brings unexpected challenges, but with the right mindset and preparation, you can conquer any trail. Read on to discover the incredible experiences our members faced on this journey.'}
                 </p>
               </Link>
             ))}
           </div>
 
-          {visibleBlogs < mockBlogs.length && (
+          {visibleBlogs < blogs.length && (
             <div className="mt-12 text-center">
               <button 
                 onClick={() => setVisibleBlogs(prev => prev + 4)}
@@ -342,14 +419,8 @@ export const HomePage = () => {
             Our Legacy
           </span>
           <h2 className="text-5xl font-extrabold text-[#1B4332] font-garamond mb-8">About <span className="text-adventure-orange">Ovijatrik</span></h2>
-          <p className="text-xl text-slate-700 mb-8 leading-relaxed">
-            Founded in 2018, the RUET Adventure Club (Ovijatrik) is the premier adventure organization
-            of Rajshahi University of Engineering & Technology. We believe in pushing boundaries,
-            exploring the unknown, and fostering a spirit of teamwork and resilience among our members.
-          </p>
-          <p className="text-xl text-slate-700 leading-relaxed mb-12">
-            From conquering the highest peaks in Bangladesh to organizing large-scale marathons and 
-            camping trips, we are dedicated to providing unforgettable experiences.
+          <p className="text-xl text-slate-700 mb-8 leading-relaxed whitespace-pre-line">
+            {aboutText}
           </p>
           
           <Link to="/about" className="inline-flex items-center gap-2 px-8 py-4 bg-[#1B4332] text-white rounded-full font-semibold hover:bg-green-900 transition-colors shadow-lg shadow-[#1B4332]/30 hover:-translate-y-1">

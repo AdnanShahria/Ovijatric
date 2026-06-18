@@ -2,8 +2,8 @@ import { verifyToken, corsHeaders } from '../utils'
 import type { Env } from '../index'
 
 // ─── CONFIGURATION ─────────────────────────────────────────────────────────────
-const PUBLIC_READ_TABLES: string[] = ['events', 'gallery', 'team', 'blog_posts']
-const TABLES_WITHOUT_ID: string[] = []
+const PUBLIC_READ_TABLES: string[] = ['events', 'gallery', 'team', 'blog_posts', 'settings', 'banners', 'map_pins']
+const TABLES_WITHOUT_ID: string[] = ['settings']
 
 const OWNER_COLUMNS: Record<string, string> = {
   'blog_posts': 'author_id',
@@ -88,7 +88,7 @@ export async function handleDynamicRoute(url: URL, request: Request, dbClient: a
       if (!body.id && !TABLES_WITHOUT_ID.includes(table)) body.id = crypto.randomUUID()
 
       // Ensure created_at for all tables that might need it
-      if (!body.created_at && ['users', 'events', 'registrations', 'contact_messages'].includes(table)) {
+      if (!body.created_at && ['users', 'events', 'registrations', 'contact_messages', 'banners', 'map_pins'].includes(table)) {
         body.created_at = new Date().getTime()
       }
       if (!body.uploaded_at && table === 'gallery') body.uploaded_at = new Date().getTime()
