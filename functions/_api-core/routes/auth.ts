@@ -113,5 +113,42 @@ export async function handleAuthRoutes(url: URL, request: Request, db: any, env:
     }
   }
 
+  // ── ADMIN ACCESS CODE LOGIN ───────────────────────────────────────
+  if (url.pathname === "/auth/verify-code" && request.method === "POST") {
+    try {
+      const body: any = await request.json()
+      const { code } = body
+
+      if (!code) {
+        return new Response(JSON.stringify({ error: "Access code required" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }
+        })
+      }
+
+      const validCode = env.ADMIN_ACCESS_CODE || 'fallback_admin_code_change_me'
+
+      if (code !== validCode) {
+        return new Response(JSON.stringify({ error: "Invalid access code" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" }
+        })
+      }
+
+      // Generate a token for the admin without needing a database user
+      const token = await signToken({ userId: 'admin-system', email: 'admin@ovijatrik', role: 'admin' }, JWT_SECRET)
+
+      return new Response(JSON.stringify({
+        success: true,
+        token,
+        user: { id: 'admin-system', email: 'admin', name: 'System Admin', role: 'admin' }
+      }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }
+      })
+    } catch (err: any) {
+      return new Response(JSON.stringify({ error: err.message }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }
+      })
+    }
+  }
+
   return null
 }

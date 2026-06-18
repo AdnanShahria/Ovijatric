@@ -1,47 +1,103 @@
-import { Outlet } from 'react-router-dom'
-import { Home, Image as ImageIcon, Calendar, Users, FileText, MessageSquare, LogOut } from 'lucide-react'
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { LayoutDashboard, Image as ImageIcon, Calendar, LogOut, Menu, X } from 'lucide-react'
+import { useState } from 'react'
 
-export const AppLayout = () => {
+export function AppLayout() {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const location = useLocation()
+  const navigate = useNavigate()
+
   const handleLogout = () => {
     localStorage.removeItem('auth_token')
     window.location.href = '/auth'
   }
 
+  const navItems = [
+    { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
+    { name: 'Banners', path: '/admin/banners', icon: ImageIcon },
+    { name: 'Events', path: '/admin/events', icon: Calendar },
+  ]
+
   return (
-    <div className="flex h-[100dvh] bg-background text-white overflow-hidden">
-      <aside className="hidden md:flex w-64 flex-col border-r border-white/5 bg-slate-900/50 p-4">
-        <div className="mb-8 px-3">
-          <h2 className="text-xl font-bold text-primary">Ovijatrik Admin</h2>
-        </div>
-        <nav className="flex-1 space-y-2">
-          <a href="/admin" className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition-colors text-slate-300 hover:text-white">
-            <Home size={18} /> Dashboard
-          </a>
-          <a href="/admin/events" className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition-colors text-slate-300 hover:text-white">
-            <Calendar size={18} /> Events
-          </a>
-          <a href="/admin/gallery" className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition-colors text-slate-300 hover:text-white">
-            <ImageIcon size={18} /> Gallery
-          </a>
-          <a href="/admin/team" className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition-colors text-slate-300 hover:text-white">
-            <Users size={18} /> Team
-          </a>
-          <a href="/admin/blog" className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition-colors text-slate-300 hover:text-white">
-            <FileText size={18} /> Blog
-          </a>
-          <a href="/admin/messages" className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition-colors text-slate-300 hover:text-white">
-            <MessageSquare size={18} /> Messages
-          </a>
-        </nav>
-        <div className="mt-auto">
-          <button onClick={handleLogout} className="flex w-full items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition-colors text-red-400 hover:text-red-300">
-            <LogOut size={18} /> Logout
-          </button>
+    <div className="min-h-screen bg-slate-900 flex text-slate-100 font-sans">
+      {/* Mobile Sidebar Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-900/80 z-20 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside 
+        className={`fixed lg:static inset-y-0 left-0 w-64 bg-slate-800 border-r border-slate-700 z-30 transform transition-transform duration-300 ease-in-out ${
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        }`}
+      >
+        <div className="h-full flex flex-col">
+          <div className="h-16 flex items-center px-6 border-b border-slate-700">
+            <h1 className="text-xl font-bold text-white tracking-tight">Ovijatrik Admin</h1>
+            <button 
+              className="ml-auto lg:hidden text-slate-400 hover:text-white"
+              onClick={() => setIsSidebarOpen(false)}
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          <nav className="flex-1 overflow-y-auto py-4">
+            <ul className="space-y-1 px-3">
+              {navItems.map((item) => {
+                const isActive = location.pathname === item.path
+                const Icon = item.icon
+                return (
+                  <li key={item.path}>
+                    <Link
+                      to={item.path}
+                      onClick={() => setIsSidebarOpen(false)}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                        isActive 
+                          ? 'bg-blue-600/10 text-blue-400' 
+                          : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
+                      }`}
+                    >
+                      <Icon className={`w-5 h-5 ${isActive ? 'text-blue-400' : 'text-slate-500'}`} />
+                      <span className="font-medium">{item.name}</span>
+                    </Link>
+                  </li>
+                )
+              })}
+            </ul>
+          </nav>
+
+          <div className="p-4 border-t border-slate-700">
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-colors"
+            >
+              <LogOut className="w-5 h-5" />
+              <span className="font-medium">Sign Out</span>
+            </button>
+          </div>
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto p-6">
-        <Outlet />
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Mobile Header */}
+        <header className="h-16 lg:hidden flex items-center px-4 bg-slate-800 border-b border-slate-700">
+          <button 
+            className="text-slate-400 hover:text-white"
+            onClick={() => setIsSidebarOpen(true)}
+          >
+            <Menu className="w-6 h-6" />
+          </button>
+          <span className="ml-4 font-bold text-white">Ovijatrik Admin</span>
+        </header>
+
+        <div className="flex-1 overflow-y-auto p-4 lg:p-8">
+          <Outlet />
+        </div>
       </main>
     </div>
   )

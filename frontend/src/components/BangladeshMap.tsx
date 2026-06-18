@@ -80,26 +80,6 @@ function featureToPath(geometry: any): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Major rivers of Bangladesh — hand-curated key waypoints (lat/lng pairs)
-//  Padma, Jamuna, Meghna, Karnaphuli, Surma-Kushiyara system
-//  These are simplified polylines tracing the river courses
-// ─────────────────────────────────────────────────────────────────────────────
-const RIVERS: Array<{ name: string; coords: [number, number][] }> = [
-  // Jamuna (Brahmaputra) — enters north, flows south
-  { name: 'Jamuna', coords: [[89.78,26.40],[89.80,25.90],[89.75,25.40],[89.67,25.00],[89.60,24.60],[89.60,24.20],[89.58,23.80]] },
-  // Padma — enters west, flows SE to join Meghna
-  { name: 'Padma',  coords: [[88.92,24.15],[89.30,24.00],[89.70,23.80],[90.10,23.55],[90.35,23.40],[90.55,23.38]] },
-  // Meghna — formed by Padma+Jamuna confluence, flows south
-  { name: 'Meghna', coords: [[90.58,23.36],[90.65,23.10],[90.70,22.80],[90.70,22.50],[90.60,22.25],[90.55,22.00]] },
-  // Surma (Sylhet region)
-  { name: 'Surma',  coords: [[92.30,24.90],[91.90,24.85],[91.50,24.80],[91.10,24.70],[90.70,24.60]] },
-  // Karnaphuli — Chattogram
-  { name: 'Karnaphuli', coords: [[92.10,22.65],[91.90,22.58],[91.75,22.45],[91.70,22.35]] },
-  // Brahmaputra (old course, north Bangladesh)
-  { name: 'Old Brahmaputra', coords: [[89.85,25.20],[90.00,24.90],[90.10,24.60],[90.30,24.30],[90.50,24.00]] },
-]
-
-// ─────────────────────────────────────────────────────────────────────────────
 //  Pin colours by type
 // ─────────────────────────────────────────────────────────────────────────────
 const PIN_STYLE: Record<AdminMapPin['type'], { dot: string; badge: string; ring: string }> = {
@@ -109,12 +89,55 @@ const PIN_STYLE: Record<AdminMapPin['type'], { dot: string; badge: string; ring:
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  Division Data
+// ─────────────────────────────────────────────────────────────────────────────
+const DISTRICT_TO_DIVISION: Record<string, string> = {
+  // Dhaka
+  Dhaka: 'Dhaka', Faridpur: 'Dhaka', Gazipur: 'Dhaka', Gopalganj: 'Dhaka', Kishoreganj: 'Dhaka', Madaripur: 'Dhaka', Manikganj: 'Dhaka', Munshiganj: 'Dhaka', Narayanganj: 'Dhaka', Narsingdi: 'Dhaka', Rajbari: 'Dhaka', Shariatpur: 'Dhaka', Tangail: 'Dhaka',
+  // Mymensingh
+  Jamalpur: 'Mymensingh', Mymensingh: 'Mymensingh', Netrakona: 'Mymensingh', Sherpur: 'Mymensingh',
+  // Rajshahi
+  Bogra: 'Rajshahi', Joypurhat: 'Rajshahi', Naogaon: 'Rajshahi', Natore: 'Rajshahi', Nawabganj: 'Rajshahi', Pabna: 'Rajshahi', Rajshahi: 'Rajshahi', Sirajganj: 'Rajshahi',
+  // Rangpur
+  Dinajpur: 'Rangpur', Gaibandha: 'Rangpur', Kurigram: 'Rangpur', Lalmonirhat: 'Rangpur', Nilphamari: 'Rangpur', Panchagarh: 'Rangpur', Rangpur: 'Rangpur', Thakurgaon: 'Rangpur',
+  // Barishal
+  Barguna: 'Barishal', Barisal: 'Barishal', Bhola: 'Barishal', Jhalokati: 'Barishal', Patuakhali: 'Barishal', Pirojpur: 'Barishal',
+  // Chattogram
+  Bandarban: 'Chattogram', Brahamanbaria: 'Chattogram', Chandpur: 'Chattogram', Chittagong: 'Chattogram', Comilla: 'Chattogram', "Cox's Bazar": 'Chattogram', Feni: 'Chattogram', Khagrachhari: 'Chattogram', Lakshmipur: 'Chattogram', Noakhali: 'Chattogram', Rangamati: 'Chattogram',
+  // Sylhet
+  Habiganj: 'Sylhet', Maulvibazar: 'Sylhet', Sunamganj: 'Sylhet', Sylhet: 'Sylhet',
+  // Khulna
+  Bagerhat: 'Khulna', Chuadanga: 'Khulna', Jessore: 'Khulna', Jhenaidah: 'Khulna', Khulna: 'Khulna', Kushtia: 'Khulna', Magura: 'Khulna', Meherpur: 'Khulna', Narail: 'Khulna', Satkhira: 'Khulna'
+}
+
+const DIVISION_COLORS: Record<string, string> = {
+  Dhaka: '#dbeafe',       // blue-100
+  Mymensingh: '#fce7f3',  // pink-100
+  Rajshahi: '#fef08a',    // yellow-200
+  Rangpur: '#ffedd5',     // orange-100
+  Barishal: '#fecaca',    // red-200 (Distinct from Dhaka)
+  Chattogram: '#dcfce7',  // green-100
+  Sylhet: '#cffafe',      // cyan-100 (Distinct from Mymensingh)
+  Khulna: '#ecfccb',      // lime-100
+}
+
+const DIVISION_LABELS = [
+  { name: 'Dhaka', lat: 24.05, lng: 90.15 }, 
+  { name: 'Mymensingh', lat: 24.95, lng: 90.30 },
+  { name: 'Rajshahi', lat: 24.60, lng: 88.95 },
+  { name: 'Rangpur', lat: 25.80, lng: 89.10 },
+  { name: 'Barishal', lat: 22.50, lng: 90.25 },
+  { name: 'Chattogram', lat: 22.90, lng: 91.60 },
+  { name: 'Sylhet', lat: 24.70, lng: 91.60 },
+  { name: 'Khulna', lat: 22.80, lng: 89.25 }
+]
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  Component
 // ─────────────────────────────────────────────────────────────────────────────
 export function BangladeshMap() {
   const [outline, setOutline]     = useState<any>(null)
   const [districts, setDistricts] = useState<any>(null)   // polygon features
-  const [rivers, setRivers]       = useState<any>(null)   // NaturalEarth rivers
   const [activePin, setActivePin] = useState<number | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -128,10 +151,7 @@ export function BangladeshMap() {
     fetch('/bangladesh-districts-simple.geojson').then(r => r.json()).then(setDistricts).catch(console.error)
   }, [])
 
-  // Load filtered rivers GeoJSON
-  useEffect(() => {
-    fetch('/bangladesh-rivers.geojson').then(r => r.json()).then(setRivers).catch(console.error)
-  }, [])
+
 
   // Close popup on outside click
   useEffect(() => {
@@ -145,31 +165,65 @@ export function BangladeshMap() {
   return (
     <div ref={containerRef} className="relative w-full max-w-lg mx-auto select-none" style={{ aspectRatio: `${SVG_W}/${SVG_H}` }}>
       <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} className="w-full h-full" style={{ overflow: 'visible' }}>
+        <defs>
+          {/* Clip path representing exactly the country shape */}
+          <clipPath id="bd-outline-clip">
+            {outline?.features?.map((f: any, i: number) => (
+              <path key={`clip-${i}`} d={featureToPath(f.geometry)} />
+            ))}
+          </clipPath>
+        </defs>
 
-        {/* ── Layer 1: Country fill (base) ───────────────────────────────── */}
+        {/* ── Layer 1: Country Base Fill ─────────────────────────────────── */}
         {outline?.features?.map((f: any, i: number) => (
           <path
             key={`outline-${i}`}
             d={featureToPath(f.geometry)}
-            fill="#b7d4bb"
+            fill="#ffffff"
             stroke="none"
           />
         ))}
 
-        {/* ── Layer 2: District polygons (fills + borders) ───────────────── */}
-        {districts?.features?.map((f: any, i: number) => (
-          <path
-            key={`dist-${i}`}
-            d={featureToPath(f.geometry)}
-            fill="transparent"
-            stroke="#1B4332"
-            strokeWidth={0.55}
-            strokeLinejoin="round"
-            opacity={0.55}
-          />
-        ))}
+        {/* Clipped content (doesn't spill over borders) */}
+        <g clipPath="url(#bd-outline-clip)">
+          {/* ── Layer 2: District polygons colored by division ───────────────── */}
+          {districts?.features?.map((f: any, i: number) => {
+            const districtName = f.properties.name;
+            const divisionName = DISTRICT_TO_DIVISION[districtName] || 'Dhaka';
+            const divisionColor = DIVISION_COLORS[divisionName];
+            return (
+              <path
+                key={`dist-${i}`}
+                d={featureToPath(f.geometry)}
+                fill={divisionColor}
+                stroke="#1B4332"
+                strokeWidth={0.55}
+                strokeLinejoin="round"
+                opacity={0.8}
+              />
+            )
+          })}
+        </g>
 
-        {/* ── Layer 3: Country border on top of districts ────────────────── */}
+        {/* ── Layer 3: Division Labels ───────────────────────────────────── */}
+        {DIVISION_LABELS.map((label) => {
+          const [x, y] = project(label.lat, label.lng)
+          return (
+            <text
+              key={label.name}
+              x={x}
+              y={y}
+              textAnchor="middle"
+              alignmentBaseline="middle"
+              className="text-[12px] font-bold fill-[#1B4332] opacity-50 uppercase tracking-widest pointer-events-none"
+              style={{ textShadow: '0px 0px 4px rgba(255,255,255,0.8)' }}
+            >
+              {label.name}
+            </text>
+          )
+        })}
+
+        {/* ── Layer 4: Country border on top of everything ───────────────── */}
         {outline?.features?.map((f: any, i: number) => (
           <path
             key={`border-${i}`}
@@ -178,39 +232,6 @@ export function BangladeshMap() {
             stroke="#1B4332"
             strokeWidth={1.6}
             strokeLinejoin="round"
-          />
-        ))}
-
-        {/* ── Layer 4: Curated river polylines ──────────────────────────── */}
-        {RIVERS.map((river) => {
-          const d = river.coords.map(([lng, lat], i) => {
-            const [x, y] = project(lat, lng)
-            return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
-          }).join(' ')
-          return (
-            <path
-              key={river.name}
-              d={d}
-              fill="none"
-              stroke="#4a9eca"
-              strokeWidth={1.4}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              opacity={0.75}
-            />
-          )
-        })}
-
-        {/* ── Layer 5: External rivers (NaturalEarth, if loaded) ─────────── */}
-        {rivers?.features?.map((f: any, i: number) => (
-          <path
-            key={`river-${i}`}
-            d={featureToPath(f.geometry)}
-            fill="none"
-            stroke="#4a9eca"
-            strokeWidth={1.2}
-            strokeLinecap="round"
-            opacity={0.65}
           />
         ))}
 

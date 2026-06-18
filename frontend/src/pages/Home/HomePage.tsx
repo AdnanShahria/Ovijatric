@@ -80,7 +80,7 @@ export const HomePage = () => {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section id="home" className="relative min-h-[90vh] flex flex-col-reverse lg:flex-row bg-transparent">
+      <section id="home" className="relative lg:min-h-[90vh] flex flex-col-reverse lg:flex-row justify-end lg:justify-center bg-transparent">
         {/* Left Side (Text Area) */}
         <div className="w-full lg:w-1/2 flex items-center justify-center px-2 py-4 sm:p-8 relative z-10">
           <div className="text-left max-w-xl w-full mx-auto lg:ml-auto lg:mr-8 mt-2 sm:mt-10 lg:mt-0">

@@ -12,6 +12,7 @@ export interface Env {
   JWT_SECRET?: string
   GROQ_API_KEY?: string
   IMGBB_API_KEY?: string
+  ADMIN_ACCESS_CODE?: string
   [key: string]: any
 }
 
