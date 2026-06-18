@@ -18,17 +18,17 @@ export const HomePage = () => {
               <span className="inline-block py-1 px-3 rounded-full bg-adventure-orange/10 border border-adventure-orange/30 text-adventure-orange text-sm font-semibold mb-6">
                 Welcome to Ovijatrik
               </span>
-              <h1 className="text-5xl md:text-7xl font-extrabold text-[#1B4332] mb-6 tracking-tight">
-                Time To <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FF6B35] to-[#e0a82e]">Explore</span>
+              <h1 className="text-5xl md:text-7xl font-extrabold text-[#1B4332] mb-6 tracking-tight leading-[1.1]">
+                Time To <span className="text-transparent bg-clip-text bg-gradient-to-r from-adventure-orange via-[#ff8a5c] to-amber-400">Explore</span>
               </h1>
               <p className="text-lg md:text-2xl text-slate-700 mb-10">
                 The official adventure club of Rajshahi University of Engineering & Technology. Join us to conquer mountains, run marathons, and make a difference.
               </p>
               <div className="flex flex-col sm:flex-row items-start justify-start gap-4">
-                <a href="#events" className="px-8 py-4 rounded-full bg-[#FF6B35] text-white font-semibold text-lg hover:bg-[#e65a29] transition-colors shadow-lg shadow-[#FF6B35]/30 flex items-center gap-2">
+                <a href="#events" className="px-8 py-4 rounded-full bg-[#FF6B35] text-white font-semibold text-lg hover:bg-[#e65a29] hover:-translate-y-1 hover:shadow-xl hover:shadow-[#FF6B35]/40 transition-all duration-300 shadow-lg shadow-[#FF6B35]/30 flex items-center gap-2">
                   Upcoming Events <ArrowRight size={20} />
                 </a>
-                <a href="/auth" className="px-8 py-4 rounded-full border-2 border-[#FF6B35] text-[#FF6B35] font-semibold text-lg hover:bg-[#FF6B35]/10 transition-colors flex items-center gap-2">
+                <a href="/auth" className="px-8 py-4 rounded-full border-2 border-[#FF6B35] text-[#FF6B35] font-semibold text-lg hover:bg-[#FF6B35]/10 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 flex items-center gap-2">
                   Member Login
                 </a>
               </div>

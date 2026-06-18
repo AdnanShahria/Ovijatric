@@ -26,7 +26,7 @@ export const Navbar = () => {
 
   return (
     <div className="sticky top-0 z-50">
-      <nav className={`w-full bg-[#eef5ee] rounded-b-3xl transition-all duration-300 ${
+      <nav className={`w-full bg-[#eef5ee] rounded-b-3xl transition-all duration-500 ease-in-out ${
         scrolled 
           ? 'shadow-md border-b border-x border-[#1B4332]/10' 
           : 'shadow-none border-b border-x border-transparent'
@@ -59,7 +59,7 @@ export const Navbar = () => {
               ))}
               <Link
                 to="/auth"
-                className="ml-4 px-5 py-2 rounded-full bg-adventure-orange text-white font-semibold text-sm hover:bg-orange-600 transition-all shadow-md shadow-adventure-orange/20"
+                className="ml-4 px-5 py-2 rounded-full bg-adventure-orange text-white font-semibold text-sm hover:bg-orange-600 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-adventure-orange/40 transition-all duration-300 shadow-md shadow-adventure-orange/20"
               >
                 Member Login
               </Link>
