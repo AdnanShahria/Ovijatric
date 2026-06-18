@@ -5,7 +5,7 @@
 @layer base {
   :root {
     /* Light Theme */
-    --bg-main: #fdfbf7; /* premium warm white */
+    --bg-main: #eef5ee; /* emerald greenish white */
     --text-main: #1B4332; /* deep forest green */
     --color-white-rgb: 255 255 255;
     --color-primary-rgb: 255 107 53; /* adventure orange */
@@ -14,7 +14,7 @@
 
   .dark {
     /* Dark Theme */
-    --bg-main: #fdfbf7; /* premium warm white */
+    --bg-main: #eef5ee; /* emerald greenish white */
     --text-main: #1B4332;
     --color-white-rgb: 255 255 255;
     --color-primary-rgb: 255 107 53; /* adventure orange */
@@ -23,7 +23,7 @@
 
   body {
     background-color: var(--bg-main);
-    background-image: linear-gradient(to bottom right, #fffdf5, #fdfbf7, #f4ead5);
+    background-image: linear-gradient(to bottom right, #f6fbf6, #eef5ee, #e4eee4);
     background-attachment: fixed;
     color: var(--text-main);
     font-family: 'Poppins', sans-serif;

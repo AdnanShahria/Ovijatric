@@ -5,10 +5,7 @@ export const HomePage = () => {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="relative min-h-[90vh] flex flex-col lg:flex-row overflow-hidden bg-transparent">
-        {/* Subtle Gold Glows */}
-        <div className="absolute top-0 left-0 w-[600px] h-[600px] bg-[#e6c17a]/10 rounded-full blur-[100px] -translate-x-1/4 -translate-y-1/4 pointer-events-none z-0" />
-        <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-[#e6c17a]/15 rounded-full blur-[100px] translate-x-1/4 translate-y-1/4 pointer-events-none z-0" />
+      <section className="relative min-h-[90vh] flex flex-col lg:flex-row bg-transparent">
 
         {/* Left Side (Text Area) */}
         <div className="w-full lg:w-1/2 flex items-center justify-center p-8 relative z-10">
