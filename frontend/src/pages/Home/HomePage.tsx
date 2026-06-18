@@ -44,7 +44,7 @@ const mockGallery = Array.from({ length: 15 }).map((_, i) => ({
 
 export const HomePage = () => {
   const [visibleEvents, setVisibleEvents] = useState(6);
-  const [visibleBlogs, setVisibleBlogs] = useState(6);
+  const [visibleBlogs, setVisibleBlogs] = useState(4);
   const [visibleGallery, setVisibleGallery] = useState(6);
   const location = useLocation();
 
@@ -65,27 +65,27 @@ export const HomePage = () => {
       {/* Hero Section */}
       <section id="home" className="relative min-h-[90vh] flex flex-col lg:flex-row bg-transparent">
         {/* Left Side (Text Area) */}
-        <div className="w-full lg:w-1/2 flex items-center justify-center p-8 relative z-10">
-          <div className="text-left max-w-xl w-full mx-auto lg:ml-auto lg:mr-8 mt-10 lg:mt-0">
+        <div className="w-full lg:w-1/2 flex items-center justify-center px-2 py-4 sm:p-8 relative z-10">
+          <div className="text-left max-w-xl w-full mx-auto lg:ml-auto lg:mr-8 mt-2 sm:mt-10 lg:mt-0">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
             >
-              <span className="inline-block py-1 px-3 rounded-full bg-adventure-orange/10 border border-adventure-orange/30 text-adventure-orange text-sm font-semibold mb-6">
+              <span className="hidden md:inline-block py-1 px-3 rounded-full bg-adventure-orange/10 border border-adventure-orange/30 text-adventure-orange text-sm font-semibold mb-6">
                 Welcome to Ovijatrik
               </span>
-              <h1 className="text-5xl md:text-7xl font-extrabold text-[#1B4332] mb-6 tracking-tight leading-[1.1]">
+              <h1 className="text-[2.25rem] sm:text-5xl md:text-7xl font-extrabold text-[#1B4332] mb-3 md:mb-6 tracking-tight leading-[1.1] whitespace-nowrap">
                 Time To <span className="text-transparent bg-clip-text bg-gradient-to-r from-adventure-orange via-[#ff8a5c] to-amber-400">Explore</span>
               </h1>
-              <p className="text-lg md:text-2xl text-slate-700 mb-10">
+              <p className="text-sm sm:text-lg md:text-2xl text-slate-700 mb-6 md:mb-10 leading-snug md:leading-normal">
                 The official adventure club of Rajshahi University of Engineering & Technology. Join us to conquer mountains, run marathons, and make a difference.
               </p>
-              <div className="flex flex-col sm:flex-row items-start justify-start gap-4">
-                <a href="#events" className="px-8 py-4 rounded-full bg-[#FF6B35] text-white font-semibold text-lg hover:bg-[#e65a29] hover:-translate-y-1 hover:shadow-xl hover:shadow-[#FF6B35]/40 transition-all duration-300 shadow-lg shadow-[#FF6B35]/30 flex items-center gap-2">
-                  Upcoming Events <ArrowRight size={20} />
+              <div className="flex flex-row w-full gap-2 sm:gap-4">
+                <a href="#events" className="flex-1 flex items-center justify-center px-1 py-3 sm:px-8 sm:py-4 rounded-full bg-[#FF6B35] text-white font-semibold text-[11px] xs:text-xs sm:text-base md:text-lg hover:bg-[#e65a29] hover:-translate-y-1 hover:shadow-xl hover:shadow-[#FF6B35]/40 transition-all duration-300 shadow-lg shadow-[#FF6B35]/30 whitespace-nowrap">
+                  Upcoming Events <ArrowRight className="w-3 h-3 sm:w-5 sm:h-5 ml-1 sm:ml-2" />
                 </a>
-                <a href="/auth" className="px-8 py-4 rounded-full border-2 border-[#FF6B35] text-[#FF6B35] font-semibold text-lg hover:bg-[#FF6B35]/10 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 flex items-center gap-2">
+                <a href="/auth" className="flex-1 flex items-center justify-center px-1 py-3 sm:px-8 sm:py-4 rounded-full border-2 border-[#FF6B35] text-[#FF6B35] font-semibold text-[11px] xs:text-xs sm:text-base md:text-lg hover:bg-[#FF6B35]/10 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 whitespace-nowrap">
                   Member Login
                 </a>
               </div>
@@ -94,7 +94,7 @@ export const HomePage = () => {
         </div>
 
         {/* Right Side (Banner Area) */}
-        <div className="w-full lg:w-1/2 relative min-h-[50vh] lg:min-h-full flex items-center justify-center p-8 z-10">
+        <div className="w-full lg:w-1/2 relative min-h-[40vh] lg:min-h-full flex items-center justify-center p-4 sm:p-8 z-10">
           <motion.div 
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -117,20 +117,20 @@ export const HomePage = () => {
       </section>
 
       {/* Stats Section */}
-      <section className="py-20 relative z-20 -mt-10 bg-transparent">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <section className="py-10 sm:py-20 relative z-20 -mt-10 sm:-mt-10 bg-transparent">
+        <div className="max-w-6xl mx-auto px-2 sm:px-4">
+          <div className="grid grid-cols-3 gap-2 sm:gap-8">
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              className="bg-white p-8 rounded-2xl text-center shadow-xl border border-[#e6c17a]/30"
+              className="bg-white p-2 sm:p-8 rounded-xl sm:rounded-2xl text-center shadow-md sm:shadow-xl border border-[#e6c17a]/30"
             >
-              <div className="w-16 h-16 mx-auto bg-adventure-orange/20 rounded-full flex items-center justify-center mb-4 text-adventure-orange">
-                <MapPin size={32} />
+              <div className="w-8 h-8 sm:w-16 sm:h-16 mx-auto bg-adventure-orange/20 rounded-full flex items-center justify-center mb-1 sm:mb-4 text-adventure-orange">
+                <MapPin className="w-4 h-4 sm:w-8 sm:h-8" />
               </div>
-              <h3 className="text-4xl font-bold text-[#1B4332] mb-2">50+</h3>
-              <p className="text-slate-600">Expeditions Completed</p>
+              <h3 className="text-lg sm:text-4xl font-bold text-[#1B4332] mb-0 sm:mb-2 leading-none">50+</h3>
+              <p className="text-[10px] sm:text-base text-slate-600 leading-tight">Expeditions</p>
             </motion.div>
 
             <motion.div 
@@ -138,13 +138,13 @@ export const HomePage = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.2 }}
-              className="bg-white p-8 rounded-2xl text-center shadow-xl border border-[#e6c17a]/30"
+              className="bg-white p-2 sm:p-8 rounded-xl sm:rounded-2xl text-center shadow-md sm:shadow-xl border border-[#e6c17a]/30"
             >
-              <div className="w-16 h-16 mx-auto bg-[#1B4332]/10 border border-[#1B4332]/20 rounded-full flex items-center justify-center mb-4 text-[#1B4332]">
-                <Users size={32} />
+              <div className="w-8 h-8 sm:w-16 sm:h-16 mx-auto bg-[#1B4332]/10 border border-[#1B4332]/20 rounded-full flex items-center justify-center mb-1 sm:mb-4 text-[#1B4332]">
+                <Users className="w-4 h-4 sm:w-8 sm:h-8" />
               </div>
-              <h3 className="text-4xl font-bold text-[#1B4332] mb-2">1,200+</h3>
-              <p className="text-slate-600">Active Members</p>
+              <h3 className="text-lg sm:text-4xl font-bold text-[#1B4332] mb-0 sm:mb-2 leading-none">1,200+</h3>
+              <p className="text-[10px] sm:text-base text-slate-600 leading-tight">Members</p>
             </motion.div>
 
             <motion.div 
@@ -152,48 +152,48 @@ export const HomePage = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.4 }}
-              className="bg-white p-8 rounded-2xl text-center shadow-xl border border-[#e6c17a]/30"
+              className="bg-white p-2 sm:p-8 rounded-xl sm:rounded-2xl text-center shadow-md sm:shadow-xl border border-[#e6c17a]/30"
             >
-              <div className="w-16 h-16 mx-auto bg-sky-500/20 rounded-full flex items-center justify-center mb-4 text-sky-400">
-                <CalendarIcon size={32} />
+              <div className="w-8 h-8 sm:w-16 sm:h-16 mx-auto bg-sky-500/20 rounded-full flex items-center justify-center mb-1 sm:mb-4 text-sky-400">
+                <CalendarIcon className="w-4 h-4 sm:w-8 sm:h-8" />
               </div>
-              <h3 className="text-4xl font-bold text-[#1B4332] mb-2">5</h3>
-              <p className="text-slate-600">Years of Legacy</p>
+              <h3 className="text-lg sm:text-4xl font-bold text-[#1B4332] mb-0 sm:mb-2 leading-none">5</h3>
+              <p className="text-[10px] sm:text-base text-slate-600 leading-tight">Years Legacy</p>
             </motion.div>
           </div>
         </div>
       </section>
 
       {/* Upcoming Events Section */}
-      <section id="events" className="py-20 relative z-20 scroll-mt-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-5xl font-extrabold text-[#1B4332] font-garamond mb-4">Upcoming <span className="text-adventure-orange">Events</span></h2>
-            <p className="text-slate-600 text-lg">Join our next expedition or local meetup.</p>
+      <section id="events" className="py-10 sm:py-20 relative z-20 scroll-mt-24">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="text-center mb-8 sm:mb-16">
+            <h2 className="text-4xl sm:text-5xl font-extrabold text-[#1B4332] font-garamond mb-2 sm:mb-4">Upcoming <span className="text-adventure-orange">Events</span></h2>
+            <p className="text-sm sm:text-lg text-slate-600">Join our next expedition or local meetup.</p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-8">
             {mockEvents.slice(0, visibleEvents).map((event) => (
-              <div key={event.id} className="bg-white rounded-2xl overflow-hidden shadow-lg border border-[#1B4332]/10 group hover:-translate-y-2 hover:shadow-2xl transition-all duration-300">
-                <div className="relative h-48 overflow-hidden">
-                  <img src={event.image} alt={event.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-                  <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-adventure-orange">
+              <div key={event.id} className="bg-white rounded-xl sm:rounded-2xl overflow-hidden shadow-md sm:shadow-lg border border-[#1B4332]/10 group hover:-translate-y-2 hover:shadow-2xl transition-all duration-300 flex flex-row sm:flex-col">
+                <div className="relative w-1/3 sm:w-full min-h-[110px] sm:h-48 overflow-hidden shrink-0">
+                  <img src={event.image} alt={event.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                  <div className="absolute top-2 left-2 sm:top-4 sm:left-auto sm:right-4 bg-white/90 backdrop-blur-sm px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold text-adventure-orange">
                     {event.category}
                   </div>
                 </div>
-                <div className="p-6">
-                  <h3 className="text-xl font-bold text-[#1B4332] font-garamond mb-2 line-clamp-1">{event.title}</h3>
-                  <div className="flex flex-col gap-2 text-sm text-slate-600 mb-6">
-                    <div className="flex items-center gap-2">
-                      <span className="w-4 h-4 text-adventure-orange">📅</span> {event.date}
+                <div className="p-3 sm:p-6 flex flex-col flex-1 justify-center">
+                  <h3 className="text-sm sm:text-xl font-bold text-[#1B4332] font-garamond mb-1 sm:mb-2 line-clamp-1 leading-tight">{event.title}</h3>
+                  <div className="flex flex-col gap-0.5 sm:gap-2 text-[11px] sm:text-sm text-slate-600 mb-2 sm:mb-6">
+                    <div className="flex items-center gap-1 sm:gap-2">
+                      <span className="w-3 h-3 sm:w-4 sm:h-4 text-adventure-orange shrink-0">📅</span> <span className="truncate">{event.date}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="w-4 h-4 text-adventure-orange">📍</span> {event.location}
+                    <div className="flex items-center gap-1 sm:gap-2">
+                      <span className="w-3 h-3 sm:w-4 sm:h-4 text-adventure-orange shrink-0">📍</span> <span className="truncate">{event.location}</span>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-slate-500">{event.spotsLeft} spots left</span>
-                    <Link to={`/events/${event.id}`} className="px-4 py-2 bg-adventure-orange/10 text-adventure-orange font-semibold rounded-lg hover:bg-adventure-orange hover:text-white transition-colors">
+                  <div className="flex items-center justify-between mt-auto">
+                    <span className="text-[10px] sm:text-sm font-medium text-slate-500">{event.spotsLeft} spots left</span>
+                    <Link to={`/events/${event.id}`} className="px-3 py-1 sm:px-4 sm:py-2 bg-adventure-orange/10 text-adventure-orange text-[10px] sm:text-base font-semibold rounded-md sm:rounded-lg hover:bg-adventure-orange hover:text-white transition-colors">
                       Details
                     </Link>
                   </div>
@@ -216,7 +216,7 @@ export const HomePage = () => {
       </section>
 
       {/* Gallery Section */}
-      <section id="gallery" className="py-20 relative z-20 bg-[#1B4332]/5 border-y border-[#1B4332]/10 scroll-mt-24">
+      <section id="gallery" className="py-20 relative z-20 scroll-mt-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-5xl font-extrabold text-[#1B4332] font-garamond mb-4">Adventure <span className="text-adventure-orange">Gallery</span></h2>
@@ -255,16 +255,16 @@ export const HomePage = () => {
             <p className="text-slate-600 text-lg">Experiences shared by our members.</p>
           </div>
           
-          <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
             {mockBlogs.slice(0, visibleBlogs).map((post) => (
-              <Link key={post.id} to={`/blog/${post.id}`} className="group block bg-white p-8 rounded-3xl shadow-md hover:shadow-xl hover:-translate-y-1 border border-[#1B4332]/5 transition-all duration-300">
-                <div className="flex items-center gap-4 mb-4 text-sm text-slate-500 font-medium">
-                  <span className="bg-adventure-orange/10 text-adventure-orange px-3 py-1 rounded-full">{post.date}</span>
-                  <span>•</span>
+              <Link key={post.id} to={`/blog/${post.id}`} className="group block bg-white p-4 sm:p-8 rounded-2xl sm:rounded-3xl shadow-md hover:shadow-xl hover:-translate-y-1 border border-[#1B4332]/5 transition-all duration-300">
+                <div className="flex items-center gap-2 sm:gap-4 mb-2 sm:mb-4 text-xs sm:text-sm text-slate-500 font-medium">
+                  <span className="bg-adventure-orange/10 text-adventure-orange px-2 py-0.5 sm:px-3 sm:py-1 rounded-full">{post.date}</span>
+                  <span className="hidden sm:inline">•</span>
                   <span>{post.readTime}</span>
                 </div>
-                <h3 className="text-2xl font-bold text-[#1B4332] group-hover:text-adventure-orange transition-colors">{post.title}</h3>
-                <p className="mt-4 text-slate-600 line-clamp-2">
+                <h3 className="text-lg sm:text-2xl font-bold text-[#1B4332] group-hover:text-adventure-orange transition-colors line-clamp-2">{post.title}</h3>
+                <p className="mt-2 sm:mt-4 text-sm sm:text-base text-slate-600 line-clamp-2">
                   Adventure brings unexpected challenges, but with the right mindset and preparation, you can conquer any trail. 
                   Read on to discover the incredible experiences our members faced on this journey.
                 </p>

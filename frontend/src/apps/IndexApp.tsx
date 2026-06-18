@@ -6,6 +6,7 @@ import { BlogDetailsPage } from '../pages/Blog/BlogDetailsPage'
 import { GalleryDetailsPage } from '../pages/Home/GalleryDetailsPage'
 import { Chatbot } from '../components/shared/Chatbot'
 import { Navbar } from '../components/shared/Navbar'
+import { Footer } from '../components/shared/Footer'
 
 function IndexApp() {
   return (
@@ -22,6 +23,7 @@ function IndexApp() {
               <Route path="*" element={<div className="p-8 text-center mt-20 text-2xl font-bold">404 - Adventure Not Found</div>} />
             </Routes>
           </main>
+          <Footer />
         </div>
         <Chatbot />
       </BrowserRouter>
