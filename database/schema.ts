@@ -63,6 +63,8 @@ export const blogPosts = sqliteTable('blog_posts', {
   content: text('content').notNull(),
   authorId: text('author_id').notNull().references(() => users.id),
   imageUrl: text('image_url'),
+  hoverImageUrl: text('hover_image_url'),
+  additionalImages: text('additional_images'),
   publishedAt: integer('published_at', { mode: 'timestamp' }).notNull(),
 });
 
@@ -89,6 +91,8 @@ export const banners = sqliteTable('banners', {
   startDate: integer('start_date', { mode: 'timestamp' }),
   endDate: integer('end_date', { mode: 'timestamp' }),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  linkType: text('link_type'),
+  linkValue: text('link_value'),
 });
 
 export const mapPins = sqliteTable('map_pins', {

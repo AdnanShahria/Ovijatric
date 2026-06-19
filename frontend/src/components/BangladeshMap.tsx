@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MapPin, Calendar, Image as ImageIcon } from 'lucide-react'
+import { Link } from 'react-router-dom'
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Admin-panel-ready pin data model
@@ -11,7 +12,7 @@ export interface AdminMapPin {
   name: string
   lat: number               // Real GPS latitude  — admin enters this
   lng: number               // Real GPS longitude — admin enters this
-  type: 'event' | 'gallery' | 'place'
+  type: 'event' | 'gallery' | 'place' | 'vlog'
   title: string
   details: string
   image: string
@@ -78,6 +79,7 @@ const PIN_STYLE: Record<AdminMapPin['type'], { dot: string; badge: string; ring:
   event:   { dot: '#FF6B35', badge: 'bg-adventure-orange text-white', ring: 'rgba(255,107,53,0.25)' },
   gallery: { dot: '#1B4332', badge: 'bg-[#1B4332] text-white',        ring: 'rgba(27,67,50,0.25)' },
   place:   { dot: '#d97706', badge: 'bg-amber-600 text-white',        ring: 'rgba(217,119,6,0.25)' },
+  vlog:    { dot: '#8B5CF6', badge: 'bg-violet-600 text-white',       ring: 'rgba(139,92,246,0.25)' },
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -149,7 +151,14 @@ export function BangladeshMap() {
             image: p.image_url || '',
             date: p.date_text || '',
             linkedEventId: p.linked_event_id,
-            linkedGalleryIds: p.linked_gallery_ids ? JSON.parse(p.linked_gallery_ids) : undefined,
+            linkedGalleryIds: (() => {
+              if (!p.linked_gallery_ids) return undefined
+              try {
+                return JSON.parse(p.linked_gallery_ids)
+              } catch {
+                return p.linked_gallery_ids
+              }
+            })(),
             linkedPlaceSlug: p.linked_place_slug
           })))
         }
@@ -301,6 +310,68 @@ export function BangladeshMap() {
             arrowClasses += "-bottom-1.5 border-b border-r";
           }
 
+          let targetUrl = ''
+          if (pin.type === 'event' && pin.linkedEventId) {
+            targetUrl = `/events/${pin.linkedEventId}`
+          } else if (pin.type === 'gallery' && pin.linkedGalleryIds) {
+            let galleryId = ''
+            try {
+              const parsed = typeof pin.linkedGalleryIds === 'string'
+                ? JSON.parse(pin.linkedGalleryIds)
+                : pin.linkedGalleryIds
+              if (Array.isArray(parsed)) {
+                galleryId = parsed[0] || ''
+              } else {
+                galleryId = String(parsed)
+              }
+            } catch {
+              galleryId = String(pin.linkedGalleryIds)
+            }
+            if (galleryId) targetUrl = `/gallery/${galleryId}`
+          } else if (pin.type === 'vlog' && pin.linkedPlaceSlug) {
+            targetUrl = `/blog/${pin.linkedPlaceSlug}`
+          }
+
+          const CardContent = (
+            <div className="w-52 sm:w-60 bg-white/90 backdrop-blur-md rounded-2xl overflow-hidden border border-white/40 hover:shadow-lg transition-shadow duration-200">
+              <div className="h-28 w-full relative">
+                <img src={pin.image} alt={pin.title} className="w-full h-full object-cover" />
+                <span className={`absolute top-2 left-2 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${s.badge}`}>{pin.type}</span>
+                <span className="absolute bottom-2 right-2 bg-black/50 backdrop-blur-sm text-white text-[9px] px-1.5 py-0.5 rounded-full">{pin.date}</span>
+              </div>
+              <div className="p-3">
+                <h4 className="font-bold text-[#1B4332] text-xs leading-tight mb-1 uppercase tracking-wide">{pin.title}</h4>
+                <p className="text-[10px] text-slate-500 mb-2 line-clamp-2 leading-relaxed">{pin.details}</p>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center text-[10px] font-semibold text-slate-400">
+                    <MapPin className="w-3 h-3 mr-0.5 text-adventure-orange" /> {pin.name}
+                  </div>
+                  <div className="flex gap-1">
+                    {pin.linkedEventId && (
+                      <span className="flex items-center gap-0.5 text-[9px] bg-orange-50 text-adventure-orange px-1.5 py-0.5 rounded-full font-bold">
+                        <Calendar className="w-2.5 h-2.5" /> Event
+                      </span>
+                    )}
+                    {pin.linkedGalleryIds && (
+                      <span className="flex items-center gap-0.5 text-[9px] bg-green-50 text-[#1B4332] px-1.5 py-0.5 rounded-full font-bold">
+                        <ImageIcon className="w-2.5 h-2.5" /> Gallery
+                      </span>
+                    )}
+                    {pin.type === 'vlog' && pin.linkedPlaceSlug && (
+                      <span className="flex items-center gap-0.5 text-[9px] bg-purple-50 text-violet-600 px-1.5 py-0.5 rounded-full font-bold">
+                        <span className="w-2.5 h-2.5 text-[9px] leading-none">📖</span> Blog
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div 
+                className={`${arrowClasses} -translate-x-1/2`} 
+                style={{ left: arrowLeft }} 
+              />
+            </div>
+          )
+
           return (
             <motion.div
               key={`popup-${pin.id}`}
@@ -308,41 +379,16 @@ export function BangladeshMap() {
               animate={{ opacity: 1, y: yOffsetAnimate, x: xOffset, scale: 1 }}
               exit={{ opacity: 0, y: yOffsetInitial, x: xOffset, scale: 0.92 }}
               transition={{ duration: 0.18 }}
-              className={`absolute z-50 pointer-events-none ${originClass}`}
+              className={`absolute z-50 ${targetUrl ? 'pointer-events-auto' : 'pointer-events-none'} ${originClass}`}
               style={{ left: `${xPct}%`, top: `${yPct}%`, filter: `drop-shadow(0 4px 20px ${s.ring.replace('0.25', '0.6')})` }}
             >
-              <div className="w-52 sm:w-60 bg-white/90 backdrop-blur-md rounded-2xl overflow-hidden border border-white/40">
-                <div className="h-28 w-full relative">
-                  <img src={pin.image} alt={pin.title} className="w-full h-full object-cover" />
-                  <span className={`absolute top-2 left-2 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${s.badge}`}>{pin.type}</span>
-                  <span className="absolute bottom-2 right-2 bg-black/50 backdrop-blur-sm text-white text-[9px] px-1.5 py-0.5 rounded-full">{pin.date}</span>
-                </div>
-                <div className="p-3">
-                  <h4 className="font-bold text-[#1B4332] text-xs leading-tight mb-1 uppercase tracking-wide">{pin.title}</h4>
-                  <p className="text-[10px] text-slate-500 mb-2 line-clamp-2 leading-relaxed">{pin.details}</p>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center text-[10px] font-semibold text-slate-400">
-                      <MapPin className="w-3 h-3 mr-0.5 text-adventure-orange" /> {pin.name}
-                    </div>
-                    <div className="flex gap-1">
-                      {pin.linkedEventId && (
-                        <span className="flex items-center gap-0.5 text-[9px] bg-orange-50 text-adventure-orange px-1.5 py-0.5 rounded-full font-bold">
-                          <Calendar className="w-2.5 h-2.5" /> Event
-                        </span>
-                      )}
-                      {pin.linkedGalleryIds && (
-                        <span className="flex items-center gap-0.5 text-[9px] bg-green-50 text-[#1B4332] px-1.5 py-0.5 rounded-full font-bold">
-                          <ImageIcon className="w-2.5 h-2.5" /> Gallery
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div 
-                  className={`${arrowClasses} -translate-x-1/2`} 
-                  style={{ left: arrowLeft }} 
-                />
-              </div>
+              {targetUrl ? (
+                <Link to={targetUrl} className="block cursor-pointer">
+                  {CardContent}
+                </Link>
+              ) : (
+                CardContent
+              )}
             </motion.div>
           )
         })}
@@ -350,7 +396,7 @@ export function BangladeshMap() {
 
       {/* ── Legend ────────────────────────────────────────────────────────── */}
       <div className="absolute bottom-2 left-2 flex flex-col gap-1.5 text-[10px] font-semibold">
-        {(['event', 'gallery', 'place'] as const).map((type) => (
+        {(['event', 'gallery', 'vlog', 'place'] as const).map((type) => (
           <div key={type} className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: PIN_STYLE[type].dot }} />
             <span className="text-slate-500 capitalize">{type}</span>

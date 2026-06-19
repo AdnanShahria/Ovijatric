@@ -9,31 +9,32 @@ const C = {
   dim: '\x1b[2m',
   // Foreground
   fg: {
-    white:   '\x1b[97m',
-    gray:    '\x1b[90m',
-    green:   '\x1b[38;5;114m',
-    blue:    '\x1b[38;5;111m',
-    cyan:    '\x1b[38;5;80m',
+    white: '\x1b[97m',
+    gray: '\x1b[90m',
+    green: '\x1b[38;5;114m',
+    blue: '\x1b[38;5;111m',
+    cyan: '\x1b[38;5;80m',
     magenta: '\x1b[38;5;176m',
-    yellow:  '\x1b[38;5;222m',
-    red:     '\x1b[38;5;203m',
-    orange:  '\x1b[38;5;209m',
-    teal:    '\x1b[38;5;73m',
+    yellow: '\x1b[38;5;222m',
+    red: '\x1b[38;5;203m',
+    orange: '\x1b[38;5;209m',
+    teal: '\x1b[38;5;73m',
   },
   // Background
   bg: {
-    red:     '\x1b[48;5;52m',
-    green:   '\x1b[48;5;22m',
-    blue:    '\x1b[48;5;17m',
+    red: '\x1b[48;5;52m',
+    green: '\x1b[48;5;22m',
+    blue: '\x1b[48;5;17m',
   }
 };
 
 // ─── State ───────────────────────────────────────────────────────────────
 const startTime = Date.now();
-const MAX_LOGS = 10;
+const MAX_LOGS = 50; // Increased to allow more logs when terminal size permits
 let logs = [];
 let renderTimer = null;
 let isShuttingDown = false;
+let lastLines = [];
 
 const services = {
   vite: {
@@ -63,7 +64,7 @@ let wranglerProcess = null;
 const apiStats = {};
 const apiTimeline = {};
 const apiHistory = [];
-const MAX_API_HISTORY = 5;
+const MAX_API_HISTORY = 20; // Increased to allow more history when terminal size permits
 let recentCallTimestamps = [];
 
 const MALICIOUS_PATTERNS = ['.env', 'wp-admin', 'wp-login', '.git', 'config.json', 'phpinfo', 'eval(', '<script', '..%2f', 'passwd'];
@@ -110,14 +111,30 @@ function addLog(service, message) {
 }
 
 // ─── Rendering (single atomic write) ────────────────────────────────────
-let pendingRender = false;
+let renderTimeout = null;
+let lastRenderTime = 0;
+const RENDER_THROTTLE_MS = 100; // Render at most 10 times per second during log bursts
+
 function scheduleRender() {
-  if (pendingRender) return;
-  pendingRender = true;
-  setImmediate(() => {
-    pendingRender = false;
-    render();
-  });
+  if (isShuttingDown) return;
+  if (renderTimeout) return;
+
+  const now = Date.now();
+  const timeSinceLastRender = now - lastRenderTime;
+
+  if (timeSinceLastRender >= RENDER_THROTTLE_MS) {
+    renderTimeout = setImmediate(() => {
+      renderTimeout = null;
+      lastRenderTime = Date.now();
+      render();
+    });
+  } else {
+    renderTimeout = setTimeout(() => {
+      renderTimeout = null;
+      lastRenderTime = Date.now();
+      render();
+    }, RENDER_THROTTLE_MS - timeSinceLastRender);
+  }
 }
 
 function pad(str, len) {
@@ -131,6 +148,7 @@ function render() {
   if (isShuttingDown) return;
 
   const W = process.stdout.columns || 90;
+  const H = process.stdout.rows || 30;
   const hr = '─'.repeat(W);
   const dhr = '═'.repeat(W);
   const R = C.reset;
@@ -138,18 +156,17 @@ function render() {
   const D = C.dim;
 
   const lines = [];
-  const push = (s = '') => lines.push(s);
 
-  // ── Header
-  push(`${B}${C.fg.teal}${dhr}${R}`);
+  // 1. Header
   const title = 'O V I J A T R I K   D E V   S T A C K';
   const padL = Math.max(0, Math.floor((W - title.length) / 2));
-  push(`${B}${C.fg.teal}${' '.repeat(padL)}${title}${R}`);
-  push(`${B}${C.fg.teal}${dhr}${R}`);
+  lines.push(`${B}${C.fg.teal}${dhr}${R}`);
+  lines.push(`${B}${C.fg.teal}${' '.repeat(padL)}${title}${R}`);
+  lines.push(`${B}${C.fg.teal}${dhr}${R}`);
 
-  // ── Services
-  push(`${B}${C.fg.white}  SERVICES${R}`);
-  push(`  ${D}${hr}${R}`);
+  // 2. Services
+  lines.push(`${B}${C.fg.white}  SERVICES${R}`);
+  lines.push(`  ${D}${hr}${R}`);
   for (const key of Object.keys(services)) {
     const s = services[key];
     let statusBadge;
@@ -161,76 +178,135 @@ function render() {
       statusBadge = `${C.bg.red}${B}${C.fg.white} STOPPED ${R}`;
     }
     const pidStr = s.pid ? `PID ${s.pid}` : '---';
-    push(`  ${s.color}${s.icon} ${B}${s.name}${R}  ${statusBadge}  ${D}${pidStr}  │  :${s.port}  │  ${s.logCount} logs${R}`);
+    lines.push(`  ${s.color}${s.icon} ${B}${s.name}${R}  ${statusBadge}  ${D}${pidStr}  │  :${s.port}  │  ${s.logCount} logs${R}`);
   }
 
-  // ── API Insights
-  push('');
-  push(`${B}${C.fg.white}  API INSIGHTS${R}`);
-  push(`  ${D}${hr}${R}`);
-
+  // 3. API Insights (optional: only if we have traffic or history)
   const tlEntries = Object.entries(apiTimeline).slice(-5);
-  if (tlEntries.length) {
-    const bar = tlEntries.map(([t, n]) => `${D}${t}${R} ${C.fg.cyan}${n}${R}`).join('  │  ');
-    push(`  ${D}Timeline:${R}  ${bar}`);
-  } else {
-    push(`  ${D}No API traffic recorded yet${R}`);
-  }
-
   const topApis = Object.entries(apiStats).sort((a, b) => b[1] - a[1]).slice(0, 4);
-  if (topApis.length) {
-    const bar = topApis.map(([p, n]) => `${C.fg.yellow}${p}${R} ${D}×${n}${R}`).join('  │  ');
-    push(`  ${D}Top:${R}      ${bar}`);
-  }
-
-  // ── Recent Requests
-  push('');
-  push(`${B}${C.fg.white}  RECENT REQUESTS${R}`);
-  push(`  ${D}${hr}${R}`);
-  if (apiHistory.length === 0) {
-    push(`  ${D}Waiting for incoming requests...${R}`);
-  } else {
-    for (const req of apiHistory) {
-      const tag = req.threat
-        ? `${C.bg.red}${B}${C.fg.white} ⚠ ${req.threat} ${R}`
-        : `${C.fg.green}✓${R}`;
-      push(`  ${D}${req.time}${R}  ${tag}  ${B}${req.method}${R} ${req.path}`);
+  const hasInsights = tlEntries.length > 0 || topApis.length > 0;
+  
+  const insightLines = [];
+  if (hasInsights) {
+    insightLines.push('');
+    insightLines.push(`${B}${C.fg.white}  API INSIGHTS${R}`);
+    insightLines.push(`  ${D}${hr}${R}`);
+    if (tlEntries.length) {
+      const bar = tlEntries.map(([t, n]) => `${D}${t}${R} ${C.fg.cyan}${n}${R}`).join('  │  ');
+      insightLines.push(`  ${D}Timeline:${R}  ${bar}`);
+    } else {
+      insightLines.push(`  ${D}No API traffic recorded yet${R}`);
+    }
+    if (topApis.length) {
+      const bar = topApis.map(([p, n]) => `${C.fg.yellow}${p}${R} ${D}×${n}${R}`).join('  │  ');
+      insightLines.push(`  ${D}Top:${R}      ${bar}`);
     }
   }
 
-  // ── System
-  push('');
+  // 4. System Uptime/RAM
   const secs = Math.floor((Date.now() - startTime) / 1000);
   const upH = String(Math.floor(secs / 3600)).padStart(2, '0');
   const upM = String(Math.floor((secs % 3600) / 60)).padStart(2, '0');
   const upS = String(secs % 60).padStart(2, '0');
   const freeMem = (os.freemem() / 1073741824).toFixed(1);
   const totalMem = (os.totalmem() / 1073741824).toFixed(1);
-  push(`  ${D}Uptime ${R}${upH}:${upM}:${upS}  ${D}│  RAM ${R}${freeMem}/${totalMem} GB  ${D}│  ${R}${os.platform()} ${os.release()}`);
-  push(`${B}${C.fg.teal}${dhr}${R}`);
+  const systemLines = [
+    '',
+    `  ${D}Uptime ${R}${upH}:${upM}:${upS}  ${D}│  RAM ${R}${freeMem}/${totalMem} GB  ${D}│  ${R}${os.platform()} ${os.release()}`,
+    `${B}${C.fg.teal}${dhr}${R}`
+  ];
 
-  // ── Logs
-  push('');
-  push(`${B}${C.fg.white}  SYSTEM LOGS${R}`);
-  push(`  ${D}${hr}${R}`);
-  if (logs.length === 0) {
-    push(`  ${D}Waiting for output...${R}`);
+  // 5. Footer
+  const footerLines = [
+    `  ${D}${hr}${R}`,
+    `  ${C.fg.red}${B}Ctrl+C${R}${D} to stop all services${R}`
+  ];
+
+  // Calculate dynamic heights to fit H
+  // Fixed lines = Header (3) + Services (4) + Insights (insightLines.length) + System (3) + Footer (2)
+  // + 3 lines for Requests header and 3 lines for Logs header
+  const fixedCount = 18 + insightLines.length;
+  const remaining = H - fixedCount - 2; // leave margin
+
+  let allowedRequests = 0;
+  let allowedLogs = 0;
+
+  if (remaining > 0) {
+    allowedRequests = Math.min(MAX_API_HISTORY, Math.max(1, Math.floor(remaining * 0.35)));
+    allowedLogs = Math.max(1, remaining - allowedRequests);
+  }
+
+  const requestsToShow = allowedRequests > 0 ? apiHistory.slice(-allowedRequests) : [];
+  const logsToShow = allowedLogs > 0 ? logs.slice(-allowedLogs) : [];
+
+  // Now build the full lines array
+  lines.push('');
+  lines.push(`${B}${C.fg.white}  RECENT REQUESTS${R}`);
+  lines.push(`  ${D}${hr}${R}`);
+  if (requestsToShow.length === 0) {
+    lines.push(`  ${D}Waiting for incoming requests...${R}`);
   } else {
-    for (const entry of logs) {
-      const src = `${entry.color}${entry.service}${R}`;
-      push(`  ${D}${entry.ts}${R}  ${src}  ${entry.line}`);
+    for (const req of requestsToShow) {
+      const tag = req.threat
+        ? `${C.bg.red}${B}${C.fg.white} ⚠ ${req.threat} ${R}`
+        : `${C.fg.green}✓${R}`;
+      lines.push(`  ${D}${req.time}${R}  ${tag}  ${B}${req.method}${R} ${req.path}`);
     }
   }
-  push(`  ${D}${hr}${R}`);
-  push(`  ${C.fg.red}${B}Ctrl+C${R}${D} to stop all services${R}`);
 
-  // ── Atomic write: clear + draw in one call
-  const output = '\x1Bc' + lines.join('\n') + '\n';
-  process.stdout.write(output);
+  if (hasInsights) {
+    lines.push(...insightLines);
+  }
+
+  lines.push(...systemLines);
+
+  lines.push('');
+  lines.push(`${B}${C.fg.white}  SYSTEM LOGS${R}`);
+  lines.push(`  ${D}${hr}${R}`);
+  if (logsToShow.length === 0) {
+    lines.push(`  ${D}Waiting for output...${R}`);
+  } else {
+    for (const entry of logsToShow) {
+      const src = `${entry.color}${entry.service}${R}`;
+      lines.push(`  ${D}${entry.ts}${R}  ${src}  ${entry.line}`);
+    }
+  }
+
+  lines.push(...footerLines);
+
+  // Crop to window height - 1 to prevent scrolling/splits
+  const currentLines = lines.slice(0, H - 1);
+
+  // Diff-based terminal draw: only write lines that changed
+  let writeBuffer = '';
+  const maxLines = Math.max(currentLines.length, lastLines.length);
+
+  for (let i = 0; i < maxLines; i++) {
+    if (i >= currentLines.length) {
+      // Clear line
+      writeBuffer += `\x1b[${i + 1};1H\x1b[K`;
+    } else if (i >= lastLines.length || currentLines[i] !== lastLines[i]) {
+      // Write line and clear rest of line
+      writeBuffer += `\x1b[${i + 1};1H${currentLines[i]}\x1b[K`;
+    }
+  }
+
+  if (writeBuffer) {
+    process.stdout.write(writeBuffer);
+  }
+
+  lastLines = currentLines;
 }
 
-// ── Timed re-render for uptime counter (every 5s to reduce flicker)
-renderTimer = setInterval(scheduleRender, 5000);
+// ── Timed re-render for uptime counter (every 1s in realtime)
+renderTimer = setInterval(scheduleRender, 1000);
+
+// ── Terminal resize event handler
+process.stdout.on('resize', () => {
+  lastLines = [];
+  process.stdout.write('\x1b[2J');
+  scheduleRender();
+});
 
 // ─── Process Management ─────────────────────────────────────────────────
 function startService(key) {
@@ -270,6 +346,9 @@ function startService(key) {
 viteProcess = startService('vite');
 wranglerProcess = startService('wrangler');
 
+// Hide cursor at startup
+process.stdout.write('\x1b[?25l');
+
 // Initial render
 render();
 
@@ -279,7 +358,8 @@ function shutdown() {
   isShuttingDown = true;
   clearInterval(renderTimer);
 
-  process.stdout.write('\x1Bc');
+  // Restore cursor and clear screen
+  process.stdout.write('\x1b[?25h\x1Bc');
   console.log(`\n${C.bold}${C.fg.yellow}  Shutting down...${C.reset}\n`);
 
   const kill = (child) => {
@@ -304,4 +384,7 @@ function shutdown() {
 
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
-process.on('exit', () => { isShuttingDown = true; });
+process.on('exit', () => {
+  isShuttingDown = true;
+  process.stdout.write('\x1b[?25h');
+});

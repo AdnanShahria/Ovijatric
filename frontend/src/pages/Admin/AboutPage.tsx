@@ -174,31 +174,31 @@ export function AboutPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 md:space-y-8">
       {/* Club Description Editor */}
-      <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 shadow-md space-y-4">
+      <div className="bg-white border border-[#1B4332]/10 rounded-2xl p-4 sm:p-6 shadow-sm space-y-4 text-[#1B4332]">
         <div>
-          <h2 className="text-xl font-bold text-white">Edit Club Description</h2>
-          <p className="text-slate-400 text-sm mt-1">This text appears in the "About Us" section of the homepage and the about story page.</p>
+          <h2 className="text-lg md:text-xl font-bold font-garamond text-[#1B4332]">Edit Club Description</h2>
+          <p className="text-slate-500 text-xs sm:text-sm mt-1">This text appears in the "About Us" section of the homepage and the about story page.</p>
         </div>
 
         {loadingText ? (
-          <div className="flex items-center gap-2 text-slate-400">
-            <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
-            <span>Loading description...</span>
+          <div className="flex items-center gap-2 text-slate-500">
+            <Loader2 className="w-4 h-4 animate-spin text-[#FF6B35]" />
+            <span className="text-xs">Loading description...</span>
           </div>
         ) : (
           <div className="space-y-3">
             <textarea
               value={aboutText}
               onChange={(e) => setAboutText(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 h-32 text-sm leading-relaxed"
+              className="w-full bg-[#f8fcf8] text-slate-800 border border-[#1B4332]/15 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#FF6B35] focus:border-[#FF6B35] h-24 sm:h-32 text-xs sm:text-sm leading-relaxed"
               placeholder="Enter club history and description..."
             />
             <button
               onClick={handleSaveAboutText}
               disabled={savingText}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm"
+              className="flex items-center gap-2 bg-[#1B4332] hover:bg-[#143225] disabled:bg-[#1B4332]/75 text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors shadow-sm"
             >
               {savingText ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               Save Description
@@ -209,14 +209,14 @@ export function AboutPage() {
 
       {/* Executive Team Members Manager */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-white tracking-tight">Executive Team</h2>
-            <p className="text-slate-400 mt-1">Manage executive members, moderators, and founders</p>
+        <div className="flex flex-row items-center justify-between">
+          <div className="text-[#1B4332]">
+            <h2 className="text-lg md:text-2xl font-bold font-garamond tracking-tight text-[#1B4332]">Executive Team</h2>
+            <p className="text-slate-500 text-xs sm:text-sm mt-0.5">Manage executive members, moderators, and founders</p>
           </div>
           <button 
             onClick={openAddModal}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg font-medium transition-colors shadow-md text-sm"
+            className="flex items-center gap-1.5 bg-[#FF6B35] hover:bg-[#e65a29] text-white px-3.5 py-2 rounded-xl font-bold transition-all shadow-sm text-xs sm:text-sm"
           >
             <Plus className="w-4 h-4" />
             Add Member
@@ -225,151 +225,194 @@ export function AboutPage() {
 
         {loadingTeam ? (
           <div className="flex justify-center py-10">
-            <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+            <Loader2 className="w-8 h-8 text-[#FF6B35] animate-spin" />
           </div>
         ) : team.length === 0 ? (
-          <div className="bg-slate-800 rounded-xl border border-slate-700 p-8 text-center">
-            <div className="w-16 h-16 bg-slate-700/50 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Users className="w-8 h-8 text-slate-400" />
+          <div className="bg-white rounded-2xl border border-[#1B4332]/10 p-6 sm:p-8 text-center text-[#1B4332]">
+            <div className="w-12 h-12 bg-emerald-50 border border-[#1B4332]/10 rounded-xl flex items-center justify-center mx-auto mb-3">
+              <Users className="w-6 h-6 text-emerald-700" />
             </div>
-            <h3 className="text-lg font-semibold text-white mb-2">No Team Members</h3>
-            <p className="text-slate-400 max-w-sm mx-auto mb-6">
+            <h3 className="text-base sm:text-lg font-bold font-garamond mb-1">No Team Members</h3>
+            <p className="text-slate-500 text-xs sm:text-sm max-w-sm mx-auto mb-4">
               You haven't added any executive team members yet. Click the button below to add one.
             </p>
             <button 
               onClick={openAddModal}
-              className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg font-medium transition-colors mx-auto"
+              className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-colors mx-auto"
             >
               <Plus className="w-4 h-4" />
               Add Member
             </button>
           </div>
         ) : (
-          <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden shadow-lg">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-700 bg-slate-800/50">
-                    <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-400">Member Info</th>
-                    <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-400">Social Links</th>
-                    <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-400">Order Index</th>
-                    <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-400 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-700 bg-slate-800/20">
-                  {team.map((member) => (
-                    <tr key={member.id} className="hover:bg-slate-700/30 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-4">
-                          {member.image_url ? (
-                            <img src={member.image_url} alt={member.name} className="w-10 h-10 object-cover rounded-full" />
-                          ) : (
-                            <div className="w-10 h-10 bg-slate-700 flex items-center justify-center rounded-full">
-                              <Users className="w-5 h-5 text-slate-500" />
-                            </div>
-                          )}
-                          <div>
-                            <div className="font-semibold text-white">{member.name}</div>
-                            <div className="text-slate-400 text-xs">{member.role}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-slate-300 text-sm">
-                        <div className="flex flex-col gap-0.5 text-xs text-slate-400">
-                          {member.facebook_url && <div>FB: {member.facebook_url}</div>}
-                          {member.linkedin_url && <div>IN: {member.linkedin_url}</div>}
-                          {!member.facebook_url && !member.linkedin_url && <span>-</span>}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-slate-300 text-sm font-medium">
-                        {member.order_index}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end items-center gap-2">
-                          <button
-                            onClick={() => openEditModal(member)}
-                            className="p-1.5 rounded bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white transition-colors"
-                            title="Edit"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteMember(member.id)}
-                            className="p-1.5 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-colors"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden md:block bg-white border border-[#1B4332]/10 rounded-2xl overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-[#1B4332]/10 bg-[#f0f6f0]">
+                      <th className="px-6 py-3.5 text-xs font-bold uppercase tracking-wider text-[#1B4332]">Member Info</th>
+                      <th className="px-6 py-3.5 text-xs font-bold uppercase tracking-wider text-[#1B4332]">Social Links</th>
+                      <th className="px-6 py-3.5 text-xs font-bold uppercase tracking-wider text-[#1B4332]">Order Index</th>
+                      <th className="px-6 py-3.5 text-xs font-bold uppercase tracking-wider text-[#1B4332] text-right">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-[#1b4332]/5 bg-white">
+                    {team.map((member) => (
+                      <tr key={member.id} className="hover:bg-[#f6fbf6] transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-4">
+                            {member.image_url ? (
+                              <img src={member.image_url} alt={member.name} className="w-10 h-10 object-cover rounded-full border border-[#1B4332]/10" />
+                            ) : (
+                              <div className="w-10 h-10 bg-emerald-50 border border-[#1B4332]/10 flex items-center justify-center rounded-full">
+                                <Users className="w-5 h-5 text-emerald-700" />
+                              </div>
+                            )}
+                            <div>
+                              <div className="font-bold text-[#1B4332] text-sm">{member.name}</div>
+                              <div className="text-slate-500 text-xs">{member.role}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-slate-600 text-xs">
+                          <div className="flex flex-col gap-0.5">
+                            {member.facebook_url && <div>FB: <span className="text-blue-600 truncate max-w-[150px] inline-block align-bottom">{member.facebook_url}</span></div>}
+                            {member.linkedin_url && <div>IN: <span className="text-[#0a66c2] truncate max-w-[150px] inline-block align-bottom">{member.linkedin_url}</span></div>}
+                            {!member.facebook_url && !member.linkedin_url && <span>-</span>}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-[#1B4332] text-sm font-semibold">
+                          {member.order_index}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex justify-end items-center gap-2">
+                            <button
+                              onClick={() => openEditModal(member)}
+                              className="p-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[#1B4332] transition-colors"
+                              title="Edit"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteMember(member.id)}
+                              className="p-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 transition-colors"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-3">
+              {team.map((member) => (
+                <div key={member.id} className="bg-white border border-[#1B4332]/10 rounded-2xl p-4 flex items-center justify-between gap-3 shadow-sm hover:shadow transition-shadow duration-200">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {member.image_url ? (
+                      <img src={member.image_url} alt={member.name} className="w-12 h-12 object-cover rounded-full border border-[#1B4332]/10 shrink-0" />
+                    ) : (
+                      <div className="w-12 h-12 bg-emerald-50 border border-[#1B4332]/10 flex items-center justify-center rounded-full shrink-0">
+                        <Users className="w-6 h-6 text-emerald-700" />
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <div className="font-extrabold text-[#1B4332] text-sm truncate leading-tight">{member.name}</div>
+                      <div className="text-slate-500 text-xs truncate mt-0.5">{member.role}</div>
+                      <div className="text-[10px] font-bold text-[#FF6B35] mt-1 bg-[#FF6B35]/5 px-1.5 py-0.5 rounded-md inline-block">
+                        Order: {member.order_index}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => openEditModal(member)}
+                      className="p-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#1B4332] transition-colors"
+                      title="Edit"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteMember(member.id)}
+                      className="p-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-500 transition-colors"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
       {/* Team Member Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-slate-800 border border-slate-700 rounded-xl shadow-2xl max-w-md w-full">
-            <div className="flex items-center justify-between p-6 border-b border-slate-700">
-              <h3 className="text-lg font-bold text-white">
+        <div className="fixed inset-0 bg-[#102d21]/40 backdrop-blur-sm z-50 flex items-center justify-center p-3 overflow-y-auto">
+          <div className="bg-white border border-[#1B4332]/10 rounded-2xl shadow-2xl max-w-md w-full animate-zoom-in text-[#1B4332] my-auto">
+            <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100 shrink-0">
+              <h3 className="text-base sm:text-lg font-bold font-garamond text-[#1B4332]">
                 {editingMember ? 'Edit Team Member' : 'Add Team Member'}
               </h3>
               <button 
                 onClick={() => setModalOpen(false)}
-                className="text-slate-400 hover:text-white transition-colors"
+                className="text-slate-400 hover:text-[#1B4332] transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveMember} className="p-6 space-y-4">
+            <form onSubmit={handleSaveMember} className="p-4 sm:p-5 space-y-3.5">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Full Name *</label>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">Full Name *</label>
                 <input
                   type="text"
                   value={memberName}
                   onChange={(e) => setMemberName(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="w-full bg-[#f8fcf8] text-slate-800 border border-[#1B4332]/15 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF6B35] focus:border-[#FF6B35] text-xs sm:text-sm"
                   placeholder="e.g. Adnan Shahria"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Role *</label>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">Role *</label>
                 <input
                   type="text"
                   value={memberRole}
                   onChange={(e) => setMemberRole(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="w-full bg-[#f8fcf8] text-slate-800 border border-[#1B4332]/15 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF6B35] focus:border-[#FF6B35] text-xs sm:text-sm"
                   placeholder="e.g. President / Moderator"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Profile Photo</label>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">Profile Photo</label>
                 <div className="flex flex-col gap-2">
                   <input
                     type="text"
                     value={memberImage}
                     onChange={(e) => setMemberImage(e.target.value)}
-                    className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    className="bg-[#f8fcf8] text-slate-800 border border-[#1B4332]/15 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF6B35] focus:border-[#FF6B35] text-xs sm:text-sm"
                     placeholder="Paste Image URL or Upload below"
                   />
 
-                  <label className="flex items-center justify-center gap-2 border-2 border-dashed border-slate-700 hover:border-slate-500 bg-slate-900/50 hover:bg-slate-950 p-3 rounded-lg cursor-pointer transition-all">
+                  <label className="flex items-center justify-center gap-2 border border-dashed border-[#1B4332]/20 hover:border-[#FF6B35] bg-[#f8fcf8]/50 hover:bg-[#f8fcf8] p-2.5 rounded-xl cursor-pointer transition-all">
                     {uploading ? (
-                      <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+                      <Loader2 className="w-4 h-4 text-[#FF6B35] animate-spin" />
                     ) : (
                       <Upload className="w-4 h-4 text-slate-400" />
                     )}
-                    <span className="text-xs text-slate-400">
+                    <span className="text-xs text-slate-500">
                       {uploading ? 'Uploading...' : 'Click to Upload Member Photo'}
                     </span>
                     <input 
@@ -382,7 +425,7 @@ export function AboutPage() {
                   </label>
 
                   {memberImage && (
-                    <div className="mt-1 relative w-20 h-20 rounded-full overflow-hidden border border-slate-700 mx-auto">
+                    <div className="mt-1 relative w-16 h-16 rounded-full overflow-hidden border border-[#1B4332]/10 mx-auto">
                       <img src={memberImage} alt="Preview" className="w-full h-full object-cover" />
                       <button 
                         type="button"
@@ -396,55 +439,55 @@ export function AboutPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1">Facebook URL</label>
+                  <label className="block text-[10px] font-semibold text-slate-500 mb-1">Facebook URL</label>
                   <input
                     type="text"
                     value={facebookUrl}
                     onChange={(e) => setFacebookUrl(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
+                    className="w-full bg-[#f8fcf8] text-slate-800 border border-[#1B4332]/15 rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#FF6B35] focus:border-[#FF6B35] text-xs"
                     placeholder="https://facebook.com/..."
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1">LinkedIn URL</label>
+                  <label className="block text-[10px] font-semibold text-slate-500 mb-1">LinkedIn URL</label>
                   <input
                     type="text"
                     value={linkedinUrl}
                     onChange={(e) => setLinkedinUrl(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
+                    className="w-full bg-[#f8fcf8] text-slate-800 border border-[#1B4332]/15 rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#FF6B35] focus:border-[#FF6B35] text-xs"
                     placeholder="https://linkedin.com/in/..."
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Display Order Index</label>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">Display Order Index</label>
                 <input
                   type="number"
                   value={orderIndex}
                   onChange={(e) => setOrderIndex(Number(e.target.value))}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="w-full bg-[#f8fcf8] text-slate-800 border border-[#1B4332]/15 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF6B35] focus:border-[#FF6B35] text-xs sm:text-sm"
                   min="0"
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-700">
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 shrink-0">
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="px-4 py-2 border border-slate-600 hover:bg-slate-700 text-slate-300 rounded-lg text-sm transition-colors"
+                  className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-xs sm:text-sm font-semibold transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={savingMember || uploading}
-                  className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white rounded-lg text-sm font-medium transition-colors"
+                  className="flex items-center gap-1.5 px-5 py-2 bg-[#1B4332] hover:bg-[#143225] disabled:bg-[#1B4332]/75 text-white rounded-xl text-xs sm:text-sm font-bold transition-colors"
                 >
-                  {savingMember && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {savingMember && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   Save Member
                 </button>
               </div>
@@ -455,3 +498,4 @@ export function AboutPage() {
     </div>
   )
 }
+

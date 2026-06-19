@@ -4,6 +4,7 @@ import { ArrowRight, MapPin, Calendar as CalendarIcon, Users } from 'lucide-reac
 import { useState, useEffect } from 'react'
 import { BangladeshMap } from '../../components/BangladeshMap'
 import { dynamicGet } from '../../utils/apiClient'
+import { slugify } from '../../utils/slugify'
 
 export const mockHeroImages = [
   '/logo.jpg',
@@ -130,6 +131,27 @@ export const HomePage = () => {
     return () => clearInterval(interval);
   }, [heroBanners.length]);
 
+  const currentBanner = heroBanners[currentImageIdx]
+  const bannerLink = (() => {
+    if (!currentBanner || !currentBanner.link_type || currentBanner.link_type === 'none' || !currentBanner.link_value) {
+      return null
+    }
+    switch (currentBanner.link_type) {
+      case 'event':
+        return `/events/${currentBanner.link_value}`
+      case 'blog':
+        return `/blog/${currentBanner.link_value}`
+      case 'gallery':
+        return `/gallery/${currentBanner.link_value}`
+      case 'custom':
+        return currentBanner.link_value
+      default:
+        return null
+    }
+  })()
+
+  const isExternal = bannerLink?.startsWith('http://') || bannerLink?.startsWith('https://')
+
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
@@ -171,32 +193,100 @@ export const HomePage = () => {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="relative w-full max-w-lg aspect-square lg:aspect-[4/3] xl:aspect-square mx-auto rounded-3xl overflow-hidden shadow-2xl border-4 border-white group bg-white"
           >
-            <div className="relative w-full h-full overflow-hidden flex items-center justify-center bg-gray-100">
-              <AnimatePresence mode="wait">
-                {heroBanners.length > 0 && (
-                  <motion.img 
-                    key={currentImageIdx}
-                    initial={{ opacity: 0, scale: 1.05 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 1.5 }} // Custom fading transition time
-                    src={heroBanners[currentImageIdx].image_url} 
-                    alt={`Hero Banner ${currentImageIdx + 1}`} 
-                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
-                  />
+            {bannerLink ? (
+              isExternal ? (
+                <a 
+                  href={bannerLink} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="relative w-full h-full overflow-hidden flex items-center justify-center bg-gray-100 cursor-pointer block"
+                >
+                  <AnimatePresence mode="wait">
+                    {heroBanners.length > 0 && (
+                      <motion.img 
+                        key={currentImageIdx}
+                        initial={{ opacity: 0, scale: 1.05 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 1.5 }}
+                        src={heroBanners[currentImageIdx].image_url} 
+                        alt={`Hero Banner ${currentImageIdx + 1}`} 
+                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                      />
+                    )}
+                  </AnimatePresence>
+                  
+                  {/* Show Topic on Hover */}
+                  {heroBanners[currentImageIdx]?.topic && (
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 flex flex-col items-center justify-center p-6 text-center backdrop-blur-sm">
+                      <span className="text-adventure-orange font-bold tracking-widest uppercase text-sm mb-2">Featured Topic</span>
+                      <h2 className="text-white text-3xl sm:text-5xl font-extrabold">{heroBanners[currentImageIdx].topic}</h2>
+                      <span className="mt-4 px-4 py-1.5 bg-adventure-orange hover:bg-[#e65a29] text-white rounded-full text-xs font-semibold flex items-center gap-1">
+                        Learn More <ArrowRight className="w-3.5 h-3.5" />
+                      </span>
+                    </div>
+                  )}
+                </a>
+              ) : (
+                <Link 
+                  to={bannerLink} 
+                  className="relative w-full h-full overflow-hidden flex items-center justify-center bg-gray-100 cursor-pointer block"
+                >
+                  <AnimatePresence mode="wait">
+                    {heroBanners.length > 0 && (
+                      <motion.img 
+                        key={currentImageIdx}
+                        initial={{ opacity: 0, scale: 1.05 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 1.5 }}
+                        src={heroBanners[currentImageIdx].image_url} 
+                        alt={`Hero Banner ${currentImageIdx + 1}`} 
+                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                      />
+                    )}
+                  </AnimatePresence>
+                  
+                  {/* Show Topic on Hover */}
+                  {heroBanners[currentImageIdx]?.topic && (
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 flex flex-col items-center justify-center p-6 text-center backdrop-blur-sm">
+                      <span className="text-adventure-orange font-bold tracking-widest uppercase text-sm mb-2">Featured Topic</span>
+                      <h2 className="text-white text-3xl sm:text-5xl font-extrabold">{heroBanners[currentImageIdx].topic}</h2>
+                      <span className="mt-4 px-4 py-1.5 bg-adventure-orange hover:bg-[#e65a29] text-white rounded-full text-xs font-semibold flex items-center gap-1">
+                        Learn More <ArrowRight className="w-3.5 h-3.5" />
+                      </span>
+                    </div>
+                  )}
+                </Link>
+              )
+            ) : (
+              <div className="relative w-full h-full overflow-hidden flex items-center justify-center bg-gray-100">
+                <AnimatePresence mode="wait">
+                  {heroBanners.length > 0 && (
+                    <motion.img 
+                      key={currentImageIdx}
+                      initial={{ opacity: 0, scale: 1.05 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 1.5 }}
+                      src={heroBanners[currentImageIdx].image_url} 
+                      alt={`Hero Banner ${currentImageIdx + 1}`} 
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                    />
+                  )}
+                </AnimatePresence>
+                
+                {/* Show Topic on Hover */}
+                {heroBanners[currentImageIdx]?.topic && (
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 flex flex-col items-center justify-center p-6 text-center backdrop-blur-sm">
+                    <span className="text-adventure-orange font-bold tracking-widest uppercase text-sm mb-2">Featured Topic</span>
+                    <h2 className="text-white text-3xl sm:text-5xl font-extrabold">{heroBanners[currentImageIdx].topic}</h2>
+                  </div>
                 )}
-              </AnimatePresence>
-              
-              {/* Show Topic on Hover */}
-              {heroBanners[currentImageIdx]?.topic && (
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 flex flex-col items-center justify-center p-6 text-center backdrop-blur-sm">
-                  <span className="text-adventure-orange font-bold tracking-widest uppercase text-sm mb-2">Featured Topic</span>
-                  <h2 className="text-white text-3xl sm:text-5xl font-extrabold">{heroBanners[currentImageIdx].topic}</h2>
-                </div>
-              )}
-            </div>
+              </div>
+            )}
             
-            <div className="absolute inset-0 bg-gradient-to-t from-[#1B4332]/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-[5]" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#1B4332]/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-[5] pointer-events-none" />
             
             <div className="absolute bottom-0 left-0 w-full p-8 z-20 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none">
               <p className="text-[#e0a82e] font-medium tracking-wider uppercase text-sm mb-2">Since 2018</p>
@@ -286,7 +376,7 @@ export const HomePage = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-8">
             {events.slice(0, visibleEvents).map((event) => (
-              <Link key={event.id} to={`/events/${event.id}`} className="block bg-white rounded-2xl overflow-hidden shadow-lg border border-[#1B4332]/10 group hover:-translate-y-2 hover:shadow-2xl transition-all duration-300 flex flex-col">
+              <Link key={event.id} to={`/events/${slugify(event.title)}`} className="block bg-white rounded-2xl overflow-hidden shadow-lg border border-[#1B4332]/10 group hover:-translate-y-2 hover:shadow-2xl transition-all duration-300 flex flex-col">
                 <div className="relative w-full overflow-hidden shrink-0 bg-slate-100 flex items-center justify-center" style={{ aspectRatio: '16/9' }}>
                   <img src={event.image} alt={event.title} className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-700" />
                   <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-adventure-orange">
@@ -353,7 +443,7 @@ export const HomePage = () => {
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {gallery.slice(0, visibleGallery).map((img) => (
-              <Link to={`/gallery/${img.id}`} key={img.id} className="relative aspect-square overflow-hidden rounded-2xl group block">
+              <Link to={`/gallery/${slugify(img.alt || 'photo')}-${img.id}`} key={img.id} className="relative aspect-square overflow-hidden rounded-2xl group block">
                 <img src={img.image} alt={img.alt} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                   <span className="text-white font-semibold">View</span>
@@ -385,7 +475,7 @@ export const HomePage = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
             {blogs.slice(0, visibleBlogs).map((post) => (
-              <Link key={post.id} to={`/blog/${post.id}`} className="group block bg-white p-4 sm:p-8 rounded-2xl sm:rounded-3xl shadow-md hover:shadow-xl hover:-translate-y-1 border border-[#1B4332]/5 transition-all duration-300">
+              <Link key={post.id} to={`/blog/${slugify(post.title)}`} className="group block bg-white p-4 sm:p-8 rounded-2xl sm:rounded-3xl shadow-md hover:shadow-xl hover:-translate-y-1 border border-[#1B4332]/5 transition-all duration-300">
                 <div className="flex items-center gap-2 sm:gap-4 mb-2 sm:mb-4 text-xs sm:text-sm text-slate-500 font-medium">
                   <span className="bg-adventure-orange/10 text-adventure-orange px-2 py-0.5 sm:px-3 sm:py-1 rounded-full">{post.date}</span>
                   <span className="hidden sm:inline">•</span>

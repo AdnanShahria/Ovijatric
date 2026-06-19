@@ -2,6 +2,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { dynamicGet } from '../../utils/apiClient';
 import { Loader2, Calendar, MapPin, Users, Info, ExternalLink, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { slugify } from '../../utils/slugify';
 
 interface Event {
   id: string;
@@ -34,18 +35,17 @@ export const EventDetailsPage = () => {
       if (!id) return;
       try {
         setLoading(true);
-        const data = await dynamicGet<Event>('events', { eq: { id } });
-        if (data.length > 0) {
-          const currentEvent = data[0];
+        const allEvents = await dynamicGet<Event>('events', { order: 'date', dir: 'desc' });
+        const currentEvent = allEvents.find(e => slugify(e.title) === id || e.id === id);
+        
+        if (currentEvent) {
           setEvent(currentEvent);
           setActiveImage(currentEvent.image_url || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop');
+          const filtered = allEvents.filter(e => e.id !== currentEvent.id).slice(0, 3);
+          setOtherEvents(filtered);
+        } else {
+          setEvent(null);
         }
-
-        // Fetch other events
-        const allEvents = await dynamicGet<Event>('events', { order: 'date', dir: 'desc' });
-        const filtered = allEvents.filter(e => e.id !== id).slice(0, 3);
-        setOtherEvents(filtered);
-
       } catch (err) {
         console.error('Failed to fetch event data:', err);
       } finally {
@@ -296,7 +296,7 @@ export const EventDetailsPage = () => {
             <h2 className="text-3xl font-extrabold text-[#1B4332] font-garamond mb-8 text-center">Explore Other <span className="text-adventure-orange">Events</span></h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {otherEvents.map((evt) => (
-                <Link key={evt.id} to={`/events/${evt.id}`} className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl border border-slate-100 transition-all duration-300 hover:-translate-y-1 block">
+                <Link key={evt.id} to={`/events/${slugify(evt.title)}`} className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl border border-slate-100 transition-all duration-300 hover:-translate-y-1 block">
                   <div className="aspect-[16/9] bg-slate-100 relative overflow-hidden">
                     <img src={evt.image_url || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop'} alt={evt.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                     {evt.is_registration_open && (

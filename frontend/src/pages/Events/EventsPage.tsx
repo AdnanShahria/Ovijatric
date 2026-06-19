@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { dynamicGet } from '../../utils/apiClient';
 import { Loader2 } from 'lucide-react';
+import { slugify } from '../../utils/slugify';
 
 export const EventsPage = () => {
   const [events, setEvents] = useState<any[]>([]);
@@ -54,7 +55,7 @@ export const EventsPage = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {events.map((event) => (
-            <Link key={event.id} to={`/events/${event.id}`} className="block bg-white rounded-2xl overflow-hidden shadow-lg border border-[#1B4332]/10 group hover:-translate-y-2 hover:shadow-2xl transition-all duration-300">
+            <Link key={event.id} to={`/events/${slugify(event.title)}`} className="block bg-white rounded-2xl overflow-hidden shadow-lg border border-[#1B4332]/10 group hover:-translate-y-2 hover:shadow-2xl transition-all duration-300">
               <div className="relative w-full overflow-hidden shrink-0 bg-slate-100 flex items-center justify-center" style={{ aspectRatio: '16/9' }}>
                 <img src={event.image} alt={event.title} className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-700" />
                 <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-adventure-orange">

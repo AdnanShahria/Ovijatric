@@ -11,7 +11,7 @@ import { Footer } from '../components/shared/Footer'
 function IndexApp() {
   return (
     <ThemeProvider>
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <div className="flex flex-col min-h-screen">
           <Navbar />
           <main className="flex-grow">

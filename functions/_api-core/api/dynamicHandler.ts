@@ -84,6 +84,22 @@ export async function handleDynamicRoute(url: URL, request: Request, dbClient: a
         body[ownerCol] = payload.userId
       }
 
+      // Ensure 'admin-system' user exists in users table to prevent FOREIGN KEY constraint failure on blog posts
+      if (table === 'blog_posts' && body.author_id === 'admin-system') {
+        if (dbClient) {
+          const checkAdmin = await dbClient.execute({
+            sql: "SELECT id FROM users WHERE id = ?",
+            args: ['admin-system']
+          })
+          if (checkAdmin.rows.length === 0) {
+            await dbClient.execute({
+              sql: "INSERT INTO users (id, email, password_hash, name, role, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+              args: ['admin-system', 'admin@ovijatrik', 'system:system', 'System Admin', 'admin', new Date().getTime()]
+            })
+          }
+        }
+      }
+
       // Auto-generate ID
       if (!body.id && !TABLES_WITHOUT_ID.includes(table)) body.id = crypto.randomUUID()
 

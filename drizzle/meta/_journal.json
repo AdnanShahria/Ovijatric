@@ -50,6 +50,20 @@
       "when": 1781795193568,
       "tag": "0006_funny_jack_power",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1781845689314,
+      "tag": "0007_early_whiplash",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1781847210306,
+      "tag": "0008_sharp_landau",
+      "breakpoints": true
     }
   ]
 }

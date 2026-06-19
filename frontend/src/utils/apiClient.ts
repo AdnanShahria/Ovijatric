@@ -69,18 +69,21 @@ export async function dynamicGet<T = any>(table: string, options: DynamicQueryOp
 
 export async function dynamicInsert<T = any>(table: string, data: Partial<T>): Promise<T> {
   const res = await apiPost<T>(`/api/dynamic/${table}`, data)
+  if (res.error) throw new Error(res.error)
   return res.data
 }
 
 export async function dynamicUpdate<T = any>(table: string, data: Partial<T> & { id: string }): Promise<T> {
   const res = await apiPut<T>(`/api/dynamic/${table}`, data)
+  if (res.error) throw new Error(res.error)
   return res.data
 }
 
 export async function dynamicDelete(table: string, filters: Record<string, string>): Promise<void> {
   const params = new URLSearchParams()
   Object.entries(filters).forEach(([k, v]) => params.append(`eq_${k}`, v))
-  await apiDelete(`/api/dynamic/${table}?${params.toString()}`)
+  const res = await apiDelete(`/api/dynamic/${table}?${params.toString()}`)
+  if (res.error) throw new Error(res.error)
 }
 
 import imageCompression from 'browser-image-compression';
@@ -126,7 +129,7 @@ async function cropToAspectRatio(file: File, aspectRatio: number): Promise<File>
   });
 }
 
-export async function uploadImage(file: File, aspectRatio?: number): Promise<{ success: boolean; url?: string; error?: string }> {
+export async function uploadImage(file: File, aspectRatio?: number, maxSizeMB: number = 0.6): Promise<{ success: boolean; url?: string; error?: string }> {
   try {
     let processedFile = file;
     console.log(`Image size before processing: ${(file.size / 1024).toFixed(2)} KB`);
@@ -136,12 +139,15 @@ export async function uploadImage(file: File, aspectRatio?: number): Promise<{ s
     }
 
     const options = {
-      maxSizeMB: 1,
+      maxSizeMB: maxSizeMB,
       maxWidthOrHeight: 1920,
       useWebWorker: true
     };
     processedFile = await imageCompression(processedFile, options);
     console.log(`Image size after processing: ${(processedFile.size / 1024).toFixed(2)} KB`);
+
+    const pct = ((file.size - processedFile.size) / file.size * 100).toFixed(2);
+    console.log(`Image compression: ${pct}% (Original: ${(file.size / 1024).toFixed(2)} KB, Compressed: ${(processedFile.size / 1024).toFixed(2)} KB)`);
 
     const formData = new FormData()
     formData.append('image', processedFile)
@@ -162,5 +168,83 @@ export async function uploadImage(file: File, aspectRatio?: number): Promise<{ s
     return { success: false, error: json.error || 'Failed to upload image' }
   } catch (error: any) {
     return { success: false, error: error.message || 'Image processing failed' }
+  }
+}
+
+export async function uploadImageWithProgress(
+  file: File, 
+  aspectRatio?: number, 
+  maxSizeMB: number = 0.6,
+  onProgress?: (step: 'compressing' | 'uploading' | 'done', percent: number) => void
+): Promise<{ success: boolean; url?: string; error?: string }> {
+  try {
+    if (onProgress) onProgress('compressing', 0);
+    let processedFile = file;
+
+    if (aspectRatio) {
+      processedFile = await cropToAspectRatio(processedFile, aspectRatio);
+    }
+
+    const options = {
+      maxSizeMB: maxSizeMB,
+      maxWidthOrHeight: 1920,
+      useWebWorker: true,
+      onProgress: (percent: number) => {
+        if (onProgress) {
+          const val = percent > 1 ? Math.round(percent) : Math.round(percent * 100);
+          onProgress('compressing', Math.min(val, 100));
+        }
+      }
+    };
+    processedFile = await imageCompression(processedFile, options);
+
+    const pct = ((file.size - processedFile.size) / file.size * 100).toFixed(2);
+    console.log(`Image compression: ${pct}% (Original: ${(file.size / 1024).toFixed(2)} KB, Compressed: ${(processedFile.size / 1024).toFixed(2)} KB)`);
+
+    if (onProgress) onProgress('uploading', 0);
+
+    return new Promise((resolve) => {
+      const xhr = new XMLHttpRequest();
+      const formData = new FormData();
+      formData.append('image', processedFile);
+
+      xhr.open('POST', '/api/upload');
+
+      const token = localStorage.getItem('auth_token');
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const percent = Math.round((event.loaded / event.total) * 100);
+          if (onProgress) onProgress('uploading', percent);
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const json = JSON.parse(xhr.responseText);
+            if (json.success) {
+              if (onProgress) onProgress('done', 100);
+              resolve({ success: true, url: json.url });
+            } else {
+              resolve({ success: false, error: json.error || 'Failed to upload image' });
+            }
+          } catch (e) {
+            resolve({ success: false, error: 'Invalid server response' });
+          }
+        } else {
+          resolve({ success: false, error: `Upload failed with status ${xhr.status}` });
+        }
+      };
+
+      xhr.onerror = () => {
+        resolve({ success: false, error: 'Network error during upload' });
+      };
+
+      xhr.send(formData);
+    });
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Image processing failed' };
   }
 }
