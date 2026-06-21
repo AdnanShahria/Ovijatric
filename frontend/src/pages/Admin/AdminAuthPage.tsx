@@ -14,7 +14,7 @@ export function AdminAuthPage() {
       const response = await fetch('/auth/verify-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: accessCode })
+        body: JSON.stringify({ code: accessCode.trim() })
       })
       
       const data = await response.json()

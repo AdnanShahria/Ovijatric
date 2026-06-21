@@ -186,7 +186,7 @@ export async function handleAuthRoutes(url: URL, request: Request, db: any, env:
 
     try {
       const body: any = await request.json()
-      const code = body.code || ''
+      const code = (body.code || '').trim()
 
       if (!code) {
         return jsonResponse({ error: "Access code required" }, cors, 400)
