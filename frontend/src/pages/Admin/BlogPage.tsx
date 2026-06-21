@@ -962,16 +962,16 @@ export function BlogPage() {
         </div>
       )}
       {progressStatus.isOpen && (
-        <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white border border-[#1B4332]/10 rounded-xl p-6 max-w-sm w-full shadow-2xl space-y-4 text-center">
-            <h4 className="text-[#1B4332] font-bold text-lg font-garamond">{progressStatus.title}</h4>
-            <div className="w-full bg-[#1B4332]/10 h-2.5 rounded-full overflow-hidden relative">
+        <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-4 animate-slide-up">
+          <div className="bg-white border border-[#1B4332]/10 rounded-xl p-5 w-80 shadow-2xl space-y-3">
+            <h4 className="text-[#1B4332] font-bold text-base font-garamond">{progressStatus.title}</h4>
+            <div className="w-full bg-[#1B4332]/10 h-2 rounded-full overflow-hidden relative">
               <div 
                 className="bg-[#FF6B35] h-full transition-all duration-300 ease-out" 
                 style={{ width: `${progressStatus.percentage}%` }}
               />
             </div>
-            <div className="flex justify-between text-xs">
+            <div className="flex justify-between text-[11px]">
               <span className="text-slate-500">{progressStatus.details}</span>
               <span className="font-semibold text-[#FF6B35]">{progressStatus.percentage}%</span>
             </div>

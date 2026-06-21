@@ -14,7 +14,7 @@ import type { Env } from '../index'
 // ─── TABLE & COLUMN WHITELIST ──────────────────────────────────────────────────
 const VALID_TABLES = [
   'events', 'gallery', 'team', 'blog_posts', 'settings',
-  'banners', 'map_pins', 'contact_messages', 'registrations',
+  'banners', 'map_pins', 'contact_messages', 'registrations', 'users'
 ] as const
 
 type ValidTable = typeof VALID_TABLES[number]
@@ -30,6 +30,7 @@ const TABLE_COLUMNS: Record<ValidTable, string[]> = {
   map_pins: ['id', 'name', 'lat', 'lng', 'type', 'title', 'details', 'image_url', 'date_text', 'linked_event_id', 'linked_gallery_ids', 'linked_place_slug', 'created_at'],
   contact_messages: ['id', 'name', 'email', 'message', 'status', 'created_at'],
   registrations: ['id', 'event_id', 'user_id', 'name', 'email', 'phone', 'student_id', 'status', 'created_at'],
+  users: ['id', 'name', 'email', 'phone', 'student_id', 'role', 'created_at'],
 }
 
 // ─── ROLE-BASED ACCESS CONTROL ─────────────────────────────────────────────────
@@ -45,6 +46,7 @@ const TABLE_PERMISSIONS: Record<ValidTable, { read: Permission; write: Permissio
   map_pins:         { read: '*',     write: 'admin', delete: 'admin' },
   contact_messages: { read: 'admin', write: '*',     delete: 'admin' },
   registrations:    { read: 'admin', write: '*',     delete: 'admin' },
+  users:            { read: 'admin', write: 'admin', delete: 'admin' },
 }
 
 const TABLES_WITHOUT_ID: string[] = ['settings']

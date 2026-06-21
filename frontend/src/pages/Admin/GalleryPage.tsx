@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Plus, Image as ImageIcon, Trash2, X, Upload, Loader2, AlertTriangle, Check } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { Plus, Image as ImageIcon, Trash2, X, Upload, Loader2, AlertTriangle, Check, ArrowLeft, Folder } from 'lucide-react'
 import { dynamicGet, dynamicInsert, dynamicDelete, dynamicUpdate, uploadImage } from '../../utils/apiClient'
 
 interface GalleryItem {
@@ -11,14 +11,31 @@ interface GalleryItem {
   uploaded_at: string | number
 }
 
+interface EventItem {
+  id: string
+  title: string
+}
+
+interface BlogItem {
+  id: string
+  title: string
+}
+
 export function GalleryPage() {
   const [items, setItems] = useState<GalleryItem[]>([])
+  const [events, setEvents] = useState<EventItem[]>([])
+  const [blogs, setBlogs] = useState<BlogItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [modalOpen, setModalOpen] = useState(false)
+  
+  // Navigation State
+  const [selectedFolder, setSelectedFolder] = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState('all') // 'all', 'pending', 'approved'
 
-  // Bulk Upload State
+  // Modal States
+  const [modalOpen, setModalOpen] = useState(false)
   const [bulkModalOpen, setBulkModalOpen] = useState(false)
+
+  // Bulk JSON State
   const [jsonInput, setJsonInput] = useState('')
   const [parseError, setParseError] = useState('')
   const [parsedGallery, setParsedGallery] = useState<any[] | null>(null)
@@ -26,20 +43,33 @@ export function GalleryPage() {
   const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 })
   const [uploadFinished, setUploadFinished] = useState(false)
   
-  // Form state
-  const [imageUrl, setImageUrl] = useState('')
+  // Add Photo Form State
+  const [uploadedUrls, setUploadedUrls] = useState<string[]>([])
+  const [categoryType, setCategoryType] = useState('Standard') // 'Standard', 'Event', 'Blog', 'Custom'
   const [category, setCategory] = useState('Trekking')
   const [customCategory, setCustomCategory] = useState('')
+  const [selectedEventId, setSelectedEventId] = useState('')
+  const [selectedBlogId, setSelectedBlogId] = useState('')
   const [caption, setCaption] = useState('')
   
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  const fetchGallery = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true)
-      const data = await dynamicGet<GalleryItem>('gallery', { order: 'uploaded_at', dir: 'desc' })
-      setItems(data)
+      const [galleryData, eventsData, blogsData] = await Promise.all([
+        dynamicGet<GalleryItem>('gallery', { order: 'uploaded_at', dir: 'desc' }),
+        dynamicGet<EventItem>('events', { order: 'date', dir: 'desc' }),
+        dynamicGet<BlogItem>('blog_posts', { order: 'created_at', dir: 'desc' })
+      ])
+      setItems(galleryData)
+      setEvents(eventsData)
+      setBlogs(blogsData)
+      
+      // Select defaults for dropdowns if available
+      if (eventsData.length > 0) setSelectedEventId(eventsData[0].id)
+      if (blogsData.length > 0) setSelectedBlogId(blogsData[0].id)
     } catch (err) {
       console.error(err)
     } finally {
@@ -48,17 +78,34 @@ export function GalleryPage() {
   }
 
   useEffect(() => {
-    fetchGallery()
+    fetchData()
   }, [])
 
+  const folders = useMemo(() => {
+    const grouped = items.reduce((acc, item) => {
+      if (!acc[item.category]) acc[item.category] = []
+      acc[item.category].push(item)
+      return acc
+    }, {} as Record<string, GalleryItem[]>)
+
+    return Object.entries(grouped).map(([cat, photos]) => {
+      const cover = photos.find(p => p.image_url)?.image_url || photos[0]?.image_url
+      return { category: cat, photos, cover, count: photos.length }
+    })
+  }, [items])
+
   const openAddModal = () => {
-    setImageUrl('')
+    setUploadedUrls([])
+    setCategoryType('Standard')
     setCategory('Trekking')
     setCustomCategory('')
     setCaption('')
+    if (events.length > 0) setSelectedEventId(events[0].id)
+    if (blogs.length > 0) setSelectedBlogId(blogs[0].id)
     setModalOpen(true)
   }
 
+  // --- Bulk JSON Handlers ---
   const handleParseJSON = () => {
     setParseError('')
     setParsedGallery(null)
@@ -72,19 +119,11 @@ export function GalleryPage() {
       } else {
         throw new Error('JSON must be an array of gallery items, or an object containing a "gallery" array.')
       }
-
-      if (gallery.length === 0) {
-        throw new Error('No gallery items found in the array.')
-      }
-
-      if (gallery.length > 100) {
-        throw new Error('Maximum 100 items allowed per upload.')
-      }
-
+      if (gallery.length === 0) throw new Error('No gallery items found in the array.')
+      if (gallery.length > 100) throw new Error('Maximum 100 items allowed per upload.')
       gallery.forEach((g: any, index: number) => {
         if (!g.category) throw new Error(`Gallery item at index ${index} is missing required 'category' field.`)
       })
-
       setParsedGallery(gallery)
     } catch (err: any) {
       setParseError(err.message || 'Invalid JSON format.')
@@ -99,14 +138,14 @@ export function GalleryPage() {
       for (let i = 0; i < parsedGallery.length; i++) {
         const item = parsedGallery[i]
         await dynamicInsert('gallery', {
-          image_url: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop', // default placeholder
+          image_url: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop',
           category: item.category || 'Other',
           caption: item.caption || null
         })
         setUploadProgress(prev => ({ ...prev, done: i + 1 }))
       }
       setUploadFinished(true)
-      fetchGallery()
+      fetchData()
     } catch (err: any) {
       alert(`Error importing: ${err.message || 'failed'}`)
     } finally {
@@ -122,46 +161,63 @@ export function GalleryPage() {
     setUploadFinished(false)
   }
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const handleMultipleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
     try {
       setUploading(true)
-      const res = await uploadImage(file)
-      if (res.success && res.url) {
-        setImageUrl(res.url)
-      } else {
-        alert(res.error || 'Failed to upload image')
+      const newUrls: string[] = []
+      for (const file of files) {
+        const res = await uploadImage(file)
+        if (res.success && res.url) {
+          newUrls.push(res.url)
+        }
       }
+      setUploadedUrls(prev => [...prev, ...newUrls])
     } catch (err) {
-      alert('Error uploading image')
+      alert('Error uploading multiple images')
     } finally {
       setUploading(false)
     }
   }
 
+  const getFinalCategory = () => {
+    if (categoryType === 'Standard') return category
+    if (categoryType === 'Custom') return customCategory.trim()
+    if (categoryType === 'Event') {
+      const ev = events.find(e => e.id === selectedEventId)
+      return ev ? `Event: ${ev.title}` : 'Unlinked Event'
+    }
+    if (categoryType === 'Blog') {
+      const bl = blogs.find(b => b.id === selectedBlogId)
+      return bl ? `Blog: ${bl.title}` : 'Unlinked Blog'
+    }
+    return 'Other'
+  }
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
-    const finalCategory = category === 'Custom' ? customCategory.trim() : category
-    if (!imageUrl || !finalCategory) {
-      alert('Please fill out all required fields')
+    const finalCategory = getFinalCategory()
+    if (uploadedUrls.length === 0 || !finalCategory) {
+      alert('Please select at least one image and specify a category')
       return
     }
 
     try {
       setSaving(true)
-      const payload: Partial<GalleryItem> = {
-        image_url: imageUrl,
-        category: finalCategory,
-        caption: caption || null,
-        status: 'approved' // Admin uploads are auto-approved
+      for (const url of uploadedUrls) {
+        const payload: Partial<GalleryItem> = {
+          image_url: url,
+          category: finalCategory,
+          caption: caption || null,
+          status: 'approved'
+        }
+        await dynamicInsert('gallery', payload)
       }
-
-      await dynamicInsert('gallery', payload)
       setModalOpen(false)
-      fetchGallery()
+      fetchData()
     } catch (err) {
-      alert('Failed to add photo')
+      alert('Failed to add photo(s)')
     } finally {
       setSaving(false)
     }
@@ -172,33 +228,55 @@ export function GalleryPage() {
     setItems(prev => prev.filter(i => i.id !== id))
     try {
       await dynamicDelete('gallery', { id })
-      fetchGallery()
+      fetchData()
     } catch (err) {
       alert('Failed to delete photo')
-      fetchGallery()
+      fetchData()
     }
   }
 
   const handleApprove = async (id: string) => {
     try {
       await dynamicUpdate('gallery', { id, status: 'approved' })
-      fetchGallery()
+      fetchData()
     } catch (err) {
       alert('Failed to approve photo')
     }
   }
 
-  const filteredItems = items.filter(item => {
+  const filteredPhotos = items.filter(item => {
+    if (selectedFolder && item.category !== selectedFolder) return false
     if (filterStatus === 'all') return true
     return (item.status || 'approved') === filterStatus
   })
+
+  // Derive existing custom categories for dropdown
+  const existingCategories = Array.from(new Set(items.map(item => item.category)))
+    .filter(cat => cat && !['Trekking', 'Camping', 'Cycling', 'Running', 'Other'].includes(cat) && !cat.startsWith('Event:') && !cat.startsWith('Blog:'))
 
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold font-garamond text-[#1B4332] tracking-tight">Manage Gallery</h2>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">Upload and categorize photos of club memories</p>
+          {selectedFolder ? (
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => setSelectedFolder(null)}
+                className="p-2 bg-white border border-[#1B4332]/10 rounded-xl hover:bg-[#1B4332]/5 text-[#1B4332] transition-colors shadow-sm"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <div>
+                <h2 className="text-xl sm:text-2xl font-bold font-garamond text-[#1B4332] tracking-tight">{selectedFolder}</h2>
+                <p className="text-xs sm:text-sm text-slate-500 mt-0.5">Manage photos in this folder</p>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold font-garamond text-[#1B4332] tracking-tight">Manage Gallery</h2>
+              <p className="text-xs sm:text-sm text-slate-500 mt-0.5">Upload and categorize photos of club memories</p>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <button 
@@ -218,99 +296,147 @@ export function GalleryPage() {
         </div>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex bg-white border border-[#1B4332]/10 rounded-xl p-1 w-full max-w-sm">
-        {['all', 'pending', 'approved'].map(status => (
-          <button
-            key={status}
-            onClick={() => setFilterStatus(status)}
-            className={`flex-1 py-1.5 text-xs sm:text-sm font-semibold rounded-lg capitalize transition-colors ${
-              filterStatus === status 
-                ? 'bg-[#1B4332] text-white' 
-                : 'text-slate-500 hover:text-[#1B4332] hover:bg-[#1B4332]/5'
-            }`}
-          >
-            {status}
-          </button>
-        ))}
-      </div>
+      {selectedFolder && (
+        <div className="flex bg-white border border-[#1B4332]/10 rounded-xl p-1 w-full max-w-sm">
+          {['all', 'pending', 'approved'].map(status => (
+            <button
+              key={status}
+              onClick={() => setFilterStatus(status)}
+              className={`flex-1 py-1.5 text-xs sm:text-sm font-semibold rounded-lg capitalize transition-colors ${
+                filterStatus === status 
+                  ? 'bg-[#1B4332] text-white' 
+                  : 'text-slate-500 hover:text-[#1B4332] hover:bg-[#1B4332]/5'
+              }`}
+            >
+              {status}
+            </button>
+          ))}
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-20">
           <Loader2 className="w-8 h-8 text-[#FF6B35] animate-spin" />
         </div>
-      ) : filteredItems.length === 0 ? (
-        <div className="bg-white rounded-xl border border-[#1B4332]/10 shadow-sm p-6 sm:p-8 text-center">
-          <div className="w-12 h-12 bg-[#1B4332]/5 rounded-xl flex items-center justify-center mx-auto mb-3">
-            <ImageIcon className="w-6 h-6 text-[#1B4332]/60" />
+      ) : selectedFolder ? (
+        /* Detailed View of Photos inside a Folder */
+        filteredPhotos.length === 0 ? (
+          <div className="bg-white rounded-xl border border-[#1B4332]/10 shadow-sm p-6 sm:p-8 text-center">
+            <div className="w-12 h-12 bg-[#1B4332]/5 rounded-xl flex items-center justify-center mx-auto mb-3">
+              <ImageIcon className="w-6 h-6 text-[#1B4332]/60" />
+            </div>
+            <h3 className="text-base sm:text-lg font-semibold text-[#1B4332] mb-1.5">No Photos Found</h3>
+            <p className="text-xs sm:text-sm text-slate-500 max-w-xs mx-auto mb-4">
+              There are no photos in this folder matching the current filter.
+            </p>
           </div>
-          <h3 className="text-base sm:text-lg font-semibold text-[#1B4332] mb-1.5">No Photos Found</h3>
-          <p className="text-xs sm:text-sm text-slate-500 max-w-xs mx-auto mb-4">
-            You haven't uploaded any photos to the gallery yet. Start by uploading one now!
-          </p>
-          <button 
-            onClick={openAddModal}
-            className="flex items-center gap-1.5 bg-[#FF6B35] hover:bg-[#E0531D] text-white px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-colors mx-auto"
-          >
-            <Plus className="w-4 h-4" />
-            Add Photo
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
-          {filteredItems.map((item) => (
-            <div key={item.id} className="bg-white border border-[#1B4332]/10 shadow-sm hover:shadow-md transition-all rounded-xl overflow-hidden group relative flex flex-col">
-              <div className="aspect-square bg-slate-50 relative flex-grow">
-                <img src={item.image_url} alt={item.caption || 'Gallery photo'} className="w-full h-full object-cover" />
-                <div className="absolute top-1.5 left-1.5 flex flex-col gap-1">
-                  <div className="bg-white/90 backdrop-blur-sm border border-[#1B4332]/10 px-2 py-0.5 rounded-lg text-[9px] font-bold text-[#1B4332] shadow-sm uppercase tracking-wide">
-                    {item.category}
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
+            {filteredPhotos.map((item) => (
+              <div key={item.id} className="bg-white border border-[#1B4332]/10 shadow-sm hover:shadow-md transition-all rounded-xl overflow-hidden group relative flex flex-col">
+                <div className="aspect-square bg-slate-50 relative flex-grow">
+                  <img src={item.image_url} alt={item.caption || 'Gallery photo'} className="w-full h-full object-cover" />
+                  <div className="absolute top-1.5 left-1.5 flex flex-col gap-1">
+                    {item.status === 'pending' && (
+                      <div className="bg-amber-100/90 text-amber-700 backdrop-blur-sm border border-amber-200 px-2 py-0.5 rounded-lg text-[9px] font-bold shadow-sm uppercase tracking-wide">
+                        Pending
+                      </div>
+                    )}
                   </div>
-                  {item.status === 'pending' && (
-                    <div className="bg-amber-100/90 text-amber-700 backdrop-blur-sm border border-amber-200 px-2 py-0.5 rounded-lg text-[9px] font-bold shadow-sm uppercase tracking-wide">
-                      Pending
+                  
+                  <div className="absolute inset-0 bg-[#1B4332]/45 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                    <div className="flex items-center gap-2">
+                      {item.status === 'pending' && (
+                        <button
+                          onClick={() => handleApprove(item.id)}
+                          className="p-2 sm:p-3 bg-green-500 hover:bg-green-600 text-white rounded-full transition-transform transform scale-90 group-hover:scale-100 shadow-lg flex items-center gap-1"
+                          title="Approve Photo"
+                        >
+                          <Check className="w-4 h-4 sm:w-5 sm:h-5" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDelete(item.id)}
+                        className="p-2 sm:p-3 bg-red-600 hover:bg-red-700 text-white rounded-full transition-transform transform scale-90 group-hover:scale-100 shadow-lg"
+                        title="Delete Photo"
+                      >
+                        <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                {item.caption && (
+                  <div className="p-2 sm:p-3 border-t border-[#1B4332]/5">
+                    <p className="text-slate-600 text-[10px] sm:text-xs line-clamp-1 sm:line-clamp-2 leading-snug">{item.caption}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )
+      ) : (
+        /* Folder Grid View */
+        folders.length === 0 ? (
+          <div className="bg-white rounded-xl border border-[#1B4332]/10 shadow-sm p-6 sm:p-8 text-center">
+            <div className="w-12 h-12 bg-[#1B4332]/5 rounded-xl flex items-center justify-center mx-auto mb-3">
+              <Folder className="w-6 h-6 text-[#1B4332]/60" />
+            </div>
+            <h3 className="text-base sm:text-lg font-semibold text-[#1B4332] mb-1.5">No Folders Found</h3>
+            <p className="text-xs sm:text-sm text-slate-500 max-w-xs mx-auto mb-4">
+              You haven't uploaded any photos to the gallery yet.
+            </p>
+            <button 
+              onClick={openAddModal}
+              className="flex items-center gap-1.5 bg-[#FF6B35] hover:bg-[#E0531D] text-white px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-colors mx-auto"
+            >
+              <Plus className="w-4 h-4" />
+              Add Photo
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            {folders.map((folder) => (
+              <div 
+                key={folder.category} 
+                onClick={() => setSelectedFolder(folder.category)}
+                className="bg-white border border-[#1B4332]/10 shadow-sm hover:shadow-lg transition-all rounded-[32px] overflow-hidden group cursor-pointer relative"
+              >
+                <div className="aspect-square bg-slate-100 relative overflow-hidden">
+                  {folder.cover ? (
+                    <img 
+                      src={folder.cover} 
+                      alt={folder.category} 
+                      className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500" 
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-slate-300">
+                      <ImageIcon className="w-12 h-12" />
                     </div>
                   )}
-                </div>
-                
-                {/* Overlay actions */}
-                <div className="absolute inset-0 bg-[#1B4332]/45 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
-                  <div className="flex items-center gap-2">
-                    {item.status === 'pending' && (
-                      <button
-                        onClick={() => handleApprove(item.id)}
-                        className="p-2 sm:p-3 bg-green-500 hover:bg-green-600 text-white rounded-full transition-transform transform scale-90 group-hover:scale-100 shadow-lg flex items-center gap-1"
-                        title="Approve Photo"
-                      >
-                        <Check className="w-4 h-4 sm:w-5 sm:h-5" />
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleDelete(item.id)}
-                      className="p-2 sm:p-3 bg-red-600 hover:bg-red-700 text-white rounded-full transition-transform transform scale-90 group-hover:scale-100 shadow-lg"
-                      title="Delete Photo"
-                    >
-                      <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
-                    </button>
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#1B4332]/60 via-transparent to-transparent opacity-80" />
+                  
+                  <div className="absolute top-4 left-4 flex flex-col gap-1">
+                    <div className="bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-full text-[11px] font-bold text-[#1B4332] shadow-sm uppercase tracking-wider">
+                      {folder.category}
+                    </div>
+                  </div>
+
+                  <div className="absolute bottom-4 left-4 right-4 text-white">
+                    <div className="text-sm font-semibold opacity-90">{folder.count} {folder.count === 1 ? 'Photo' : 'Photos'}</div>
                   </div>
                 </div>
               </div>
-              {item.caption && (
-                <div className="p-2 sm:p-3 border-t border-[#1B4332]/5">
-                  <p className="text-slate-600 text-[10px] sm:text-xs line-clamp-1 sm:line-clamp-2 leading-snug">{item.caption}</p>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )
       )}
 
       {/* Upload Modal */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-2 xs:p-3 sm:p-4 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white border border-[#1B4332]/10 rounded-xl shadow-2xl max-w-md w-full max-h-[92vh] flex flex-col my-auto">
+          <div className="bg-white border border-[#1B4332]/10 rounded-xl shadow-2xl max-w-lg w-full max-h-[92vh] flex flex-col my-auto">
             <div className="flex items-center justify-between p-4 border-b border-[#1B4332]/10 shrink-0">
-              <h3 className="text-base sm:text-lg font-bold text-[#1B4332] font-garamond">Add Photo to Gallery</h3>
+              <h3 className="text-base sm:text-lg font-bold text-[#1B4332] font-garamond">Add Photos to Gallery</h3>
               <button 
                 onClick={() => setModalOpen(false)}
                 className="text-slate-400 hover:text-slate-600 transition-colors"
@@ -319,113 +445,178 @@ export function GalleryPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="p-4 space-y-3.5 overflow-y-auto flex-grow scrollbar-thin">
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">Image *</label>
-                <div className="flex flex-col gap-1.5">
-                  <input
-                    type="text"
-                    value={imageUrl}
-                    onChange={(e) => setImageUrl(e.target.value)}
-                    className="w-full bg-[#f8fcf8] text-slate-800 border border-[#1B4332]/15 rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#FF6B35] focus:border-[#FF6B35] text-xs sm:text-sm"
-                    placeholder="Paste Image URL or Upload below"
-                    required
-                  />
+            <form onSubmit={handleSave} className="p-4 space-y-4 overflow-y-auto flex-grow scrollbar-thin">
+              
+              {/* Category Linking Section */}
+              <div className="p-3 bg-[#f8fcf8] border border-[#1B4332]/15 rounded-xl space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold text-[#1B4332] mb-1.5">Link Folder / Category Type</label>
+                  <div className="flex flex-wrap gap-2">
+                    {['Standard', 'Event', 'Blog', 'Custom'].map(type => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => setCategoryType(type)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border ${
+                          categoryType === type 
+                            ? 'bg-[#1B4332] text-white border-[#1B4332]' 
+                            : 'bg-white text-slate-600 border-slate-200 hover:border-[#1B4332]/30'
+                        }`}
+                      >
+                        {type}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-                  <label className="flex items-center justify-center gap-1.5 border border-dashed border-[#1B4332]/20 hover:border-[#FF6B35] bg-[#f8fcf8] hover:bg-[#f2faf2] p-2.5 rounded-xl cursor-pointer transition-all shrink-0">
-                    {uploading ? (
-                      <Loader2 className="w-4 h-4 text-[#FF6B35] animate-spin" />
+                {categoryType === 'Standard' && (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">Select Standard Category</label>
+                    <select
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      className="w-full bg-white text-slate-800 border border-[#1B4332]/15 rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#FF6B35] text-xs sm:text-sm"
+                    >
+                      {['Trekking', 'Camping', 'Cycling', 'Running', 'Other'].map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                      {existingCategories.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {categoryType === 'Custom' && (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">Custom Category Name *</label>
+                    <input
+                      type="text"
+                      value={customCategory}
+                      onChange={(e) => setCustomCategory(e.target.value)}
+                      className="w-full bg-white text-slate-800 border border-[#1B4332]/15 rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#FF6B35] text-xs sm:text-sm"
+                      placeholder="e.g. Annual Retreat 2024"
+                      required
+                    />
+                  </div>
+                )}
+
+                {categoryType === 'Event' && (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">Link to Event</label>
+                    {events.length > 0 ? (
+                      <select
+                        value={selectedEventId}
+                        onChange={(e) => setSelectedEventId(e.target.value)}
+                        className="w-full bg-white text-slate-800 border border-[#1B4332]/15 rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#FF6B35] text-xs sm:text-sm"
+                      >
+                        {events.map(ev => (
+                          <option key={ev.id} value={ev.id}>{ev.title}</option>
+                        ))}
+                      </select>
                     ) : (
-                      <Upload className="w-4 h-4 text-[#1B4332]/50" />
+                      <p className="text-xs text-red-500">No events found. Please create an event first.</p>
                     )}
-                    <span className="text-xs text-[#1B4332]/70 font-medium">
-                      {uploading ? 'Uploading...' : 'Click to Upload Image'}
-                    </span>
+                  </div>
+                )}
+
+                {categoryType === 'Blog' && (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">Link to Blog Post</label>
+                    {blogs.length > 0 ? (
+                      <select
+                        value={selectedBlogId}
+                        onChange={(e) => setSelectedBlogId(e.target.value)}
+                        className="w-full bg-white text-slate-800 border border-[#1B4332]/15 rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#FF6B35] text-xs sm:text-sm"
+                      >
+                        {blogs.map(bl => (
+                          <option key={bl.id} value={bl.id}>{bl.title}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <p className="text-xs text-red-500">No blog posts found. Please create a blog post first.</p>
+                    )}
+                  </div>
+                )}
+                
+                <div className="pt-2">
+                  <div className="text-[10px] text-slate-500 flex items-center gap-1">
+                    <Check className="w-3 h-3 text-emerald-500" />
+                    Folder will be named: <span className="font-bold text-[#1B4332]">{getFinalCategory()}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Images Section */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">Images *</label>
+                <div className="flex flex-col gap-2">
+                  <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-[#1B4332]/20 hover:border-[#FF6B35] bg-[#f8fcf8] hover:bg-[#f2faf2] p-6 rounded-xl cursor-pointer transition-all shrink-0 text-center">
+                    {uploading ? (
+                      <Loader2 className="w-6 h-6 text-[#FF6B35] animate-spin" />
+                    ) : (
+                      <Upload className="w-6 h-6 text-[#1B4332]/40" />
+                    )}
+                    <div>
+                      <span className="block text-sm text-[#1B4332] font-bold">
+                        {uploading ? 'Uploading Images...' : 'Click to Upload Multiple Images'}
+                      </span>
+                      <span className="block text-xs text-slate-500 mt-0.5">You can select multiple files at once</span>
+                    </div>
                     <input 
                       type="file" 
                       accept="image/*"
-                      onChange={handleImageUpload}
+                      multiple
+                      onChange={handleMultipleImageUpload}
                       disabled={uploading}
                       className="hidden" 
                     />
                   </label>
 
-                  {imageUrl && (
-                    <div className="mt-1 relative w-full h-24 sm:h-28 rounded-xl overflow-hidden border border-[#1B4332]/10 shrink-0">
-                      <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" />
-                      <button 
-                        type="button"
-                        onClick={() => setImageUrl('')}
-                        className="absolute top-1.5 right-1.5 bg-red-600 hover:bg-red-700 text-white rounded-full p-1 shadow-md"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
+                  {uploadedUrls.length > 0 && (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-2 shrink-0">
+                      {uploadedUrls.map((url, idx) => (
+                        <div key={idx} className="relative group w-full aspect-square rounded-xl overflow-hidden border border-[#1B4332]/10">
+                          <img src={url} alt={`Preview ${idx}`} className="w-full h-full object-cover" />
+                          <button 
+                            type="button"
+                            onClick={() => setUploadedUrls(prev => prev.filter((_, i) => i !== idx))}
+                            className="absolute top-1.5 right-1.5 bg-red-600 hover:bg-red-700 text-white rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">Category *</label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full bg-[#f8fcf8] text-slate-800 border border-[#1B4332]/15 rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#FF6B35] focus:border-[#FF6B35] text-xs sm:text-sm"
-                >
-                  {/* Default Categories */}
-                  {['Trekking', 'Camping', 'Cycling', 'Running', 'Other'].map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                  {/* Dynamically display existing custom categories */}
-                  {Array.from(new Set(items.map(item => item.category)))
-                    .filter(cat => cat && !['Trekking', 'Camping', 'Cycling', 'Running', 'Other'].includes(cat))
-                    .map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))
-                  }
-                  <option value="Custom">Custom (Create New...)</option>
-                </select>
-              </div>
-
-              {category === 'Custom' && (
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1">Custom Category Name *</label>
-                  <input
-                    type="text"
-                    value={customCategory}
-                    onChange={(e) => setCustomCategory(e.target.value)}
-                    className="w-full bg-[#f8fcf8] text-slate-800 border border-[#1B4332]/15 rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#FF6B35] focus:border-[#FF6B35] text-xs sm:text-sm"
-                    placeholder="Enter custom category name"
-                    required
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">Caption</label>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">Shared Caption (Optional)</label>
                 <textarea
                   value={caption}
                   onChange={(e) => setCaption(e.target.value)}
-                  className="w-full bg-[#f8fcf8] text-slate-800 border border-[#1B4332]/15 rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#FF6B35] focus:border-[#FF6B35] h-16 resize-none text-xs sm:text-sm"
-                  placeholder="Enter a brief caption for this photo..."
+                  className="w-full bg-[#f8fcf8] text-slate-800 border border-[#1B4332]/15 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF6B35] h-16 resize-none text-xs sm:text-sm"
+                  placeholder="Caption applies to all selected photos..."
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t border-[#1B4332]/10 shrink-0">
+              <div className="flex justify-end gap-3 pt-4 border-t border-[#1B4332]/10 shrink-0">
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="px-3.5 py-1.5 border border-[#1B4332]/20 hover:bg-[#1B4332]/5 text-[#1B4332] rounded-xl text-xs sm:text-sm font-semibold transition-colors"
+                  className="px-4 py-2 border border-[#1B4332]/20 hover:bg-[#1B4332]/5 text-[#1B4332] rounded-xl text-xs sm:text-sm font-semibold transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={saving || uploading}
-                  className="flex items-center gap-1.5 px-4 py-1.5 bg-[#FF6B35] hover:bg-[#E0531D] disabled:opacity-50 text-white rounded-xl text-xs sm:text-sm font-semibold transition-colors"
+                  disabled={saving || uploading || uploadedUrls.length === 0}
+                  className="flex items-center gap-1.5 px-5 py-2 bg-[#FF6B35] hover:bg-[#E0531D] disabled:opacity-50 text-white rounded-xl text-xs sm:text-sm font-bold transition-colors shadow-sm"
                 >
-                  {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  Add Photo
+                  {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Save {uploadedUrls.length > 0 ? uploadedUrls.length : ''} Photos
                 </button>
               </div>
             </form>
@@ -455,7 +646,7 @@ export function GalleryPage() {
               {!parsedGallery && !uploadFinished && (
                 <div className="space-y-4 flex flex-col h-full">
                   <div className="text-xs sm:text-sm text-slate-600">
-                    Paste a JSON array of gallery items (maximum 100 items per upload) or an object containing a `gallery` array.
+                    Paste a JSON array of gallery items (maximum 100 items per upload) or an object containing a \`gallery\` array.
                   </div>
                   <textarea
                     value={jsonInput}
