@@ -383,11 +383,13 @@ export function BlogPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this blog post?')) return
+    setPosts(prev => prev.filter(p => p.id !== id))
     try {
       await dynamicDelete('blog_posts', { id })
       fetchPosts()
     } catch (err) {
       alert('Failed to delete blog post')
+      fetchPosts()
     }
   }
 

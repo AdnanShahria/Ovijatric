@@ -30,7 +30,11 @@ async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = R
 
 export async function apiGet<T = any>(path: string): Promise<{ success: boolean; data: T; error?: string }> {
   try {
-    const res = await fetchWithTimeout(`${API_URL}${path}`, { headers: getAuthHeaders() })
+    const token = localStorage.getItem('auth_token')
+    const hasParams = path.includes('?')
+    const cacheBusterPath = token ? `${path}${hasParams ? '&' : '?'}_t=${Date.now()}` : path
+    
+    const res = await fetchWithTimeout(`${API_URL}${cacheBusterPath}`, { headers: getAuthHeaders() })
     const json = await res.json()
     if (res.status === 401) {
       localStorage.removeItem('auth_token')

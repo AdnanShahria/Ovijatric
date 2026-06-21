@@ -184,8 +184,8 @@ export async function handleDynamicRoute(url: URL, request: Request, dbClient: a
 
       const res = dbClient ? await dbClient.execute({ sql, args }) : { rows: [] }
 
-      // Cache public reads for 60 seconds
-      const cacheSeconds = permissions.read === '*' ? 60 : 0
+      // Cache public reads for 60 seconds (do not cache for admins)
+      const cacheSeconds = (permissions.read === '*' && userRole !== 'admin') ? 60 : 0
       return jsonResponse({ success: true, data: res.rows }, cors, 200, cacheSeconds)
     }
 

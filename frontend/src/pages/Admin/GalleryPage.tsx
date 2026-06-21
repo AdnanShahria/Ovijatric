@@ -169,11 +169,13 @@ export function GalleryPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this photo?')) return
+    setItems(prev => prev.filter(i => i.id !== id))
     try {
       await dynamicDelete('gallery', { id })
       fetchGallery()
     } catch (err) {
       alert('Failed to delete photo')
+      fetchGallery()
     }
   }
 

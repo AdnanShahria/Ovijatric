@@ -178,11 +178,13 @@ export function MapPinsPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this pin?')) return
+    setPins(prev => prev.filter(p => p.id !== id))
     try {
       await dynamicDelete('map_pins', { id })
       fetchPins()
     } catch (err) {
       alert('Failed to delete pin')
+      fetchPins()
     }
   }
 

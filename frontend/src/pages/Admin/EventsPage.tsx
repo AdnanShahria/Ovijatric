@@ -280,11 +280,13 @@ export function EventsPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this event?')) return
+    setEvents(prev => prev.filter(e => e.id !== id))
     try {
       await dynamicDelete('events', { id })
       fetchEvents()
     } catch (err) {
       alert('Failed to delete event')
+      fetchEvents()
     }
   }
 
