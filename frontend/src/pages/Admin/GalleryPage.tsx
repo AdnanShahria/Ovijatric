@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { Plus, Image as ImageIcon, Trash2, X, Upload, Loader2, AlertTriangle, Check } from 'lucide-react'
-import { dynamicGet, dynamicInsert, dynamicDelete, uploadImage } from '../../utils/apiClient'
+import { dynamicGet, dynamicInsert, dynamicDelete, dynamicUpdate, uploadImage } from '../../utils/apiClient'
 
 interface GalleryItem {
   id: string
   image_url: string
   category: string
   caption?: string | null
+  status?: string
   uploaded_at: string | number
 }
 
@@ -14,6 +15,7 @@ export function GalleryPage() {
   const [items, setItems] = useState<GalleryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
+  const [filterStatus, setFilterStatus] = useState('all') // 'all', 'pending', 'approved'
 
   // Bulk Upload State
   const [bulkModalOpen, setBulkModalOpen] = useState(false)
@@ -151,7 +153,8 @@ export function GalleryPage() {
       const payload: Partial<GalleryItem> = {
         image_url: imageUrl,
         category: finalCategory,
-        caption: caption || null
+        caption: caption || null,
+        status: 'approved' // Admin uploads are auto-approved
       }
 
       await dynamicInsert('gallery', payload)
@@ -173,6 +176,20 @@ export function GalleryPage() {
       alert('Failed to delete photo')
     }
   }
+
+  const handleApprove = async (id: string) => {
+    try {
+      await dynamicUpdate('gallery', { id, status: 'approved' })
+      fetchGallery()
+    } catch (err) {
+      alert('Failed to approve photo')
+    }
+  }
+
+  const filteredItems = items.filter(item => {
+    if (filterStatus === 'all') return true
+    return (item.status || 'approved') === filterStatus
+  })
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -199,11 +216,28 @@ export function GalleryPage() {
         </div>
       </div>
 
+      {/* Filter Tabs */}
+      <div className="flex bg-white border border-[#1B4332]/10 rounded-xl p-1 w-full max-w-sm">
+        {['all', 'pending', 'approved'].map(status => (
+          <button
+            key={status}
+            onClick={() => setFilterStatus(status)}
+            className={`flex-1 py-1.5 text-xs sm:text-sm font-semibold rounded-lg capitalize transition-colors ${
+              filterStatus === status 
+                ? 'bg-[#1B4332] text-white' 
+                : 'text-slate-500 hover:text-[#1B4332] hover:bg-[#1B4332]/5'
+            }`}
+          >
+            {status}
+          </button>
+        ))}
+      </div>
+
       {loading ? (
         <div className="flex justify-center py-20">
           <Loader2 className="w-8 h-8 text-[#FF6B35] animate-spin" />
         </div>
-      ) : items.length === 0 ? (
+      ) : filteredItems.length === 0 ? (
         <div className="bg-white rounded-xl border border-[#1B4332]/10 shadow-sm p-6 sm:p-8 text-center">
           <div className="w-12 h-12 bg-[#1B4332]/5 rounded-xl flex items-center justify-center mx-auto mb-3">
             <ImageIcon className="w-6 h-6 text-[#1B4332]/60" />
@@ -222,23 +256,41 @@ export function GalleryPage() {
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
-          {items.map((item) => (
+          {filteredItems.map((item) => (
             <div key={item.id} className="bg-white border border-[#1B4332]/10 shadow-sm hover:shadow-md transition-all rounded-xl overflow-hidden group relative flex flex-col">
               <div className="aspect-square bg-slate-50 relative flex-grow">
                 <img src={item.image_url} alt={item.caption || 'Gallery photo'} className="w-full h-full object-cover" />
-                <div className="absolute top-1.5 left-1.5 bg-white/90 backdrop-blur-sm border border-[#1B4332]/10 px-2 py-0.5 rounded-lg text-[9px] font-bold text-[#1B4332] shadow-sm uppercase tracking-wide">
-                  {item.category}
+                <div className="absolute top-1.5 left-1.5 flex flex-col gap-1">
+                  <div className="bg-white/90 backdrop-blur-sm border border-[#1B4332]/10 px-2 py-0.5 rounded-lg text-[9px] font-bold text-[#1B4332] shadow-sm uppercase tracking-wide">
+                    {item.category}
+                  </div>
+                  {item.status === 'pending' && (
+                    <div className="bg-amber-100/90 text-amber-700 backdrop-blur-sm border border-amber-200 px-2 py-0.5 rounded-lg text-[9px] font-bold shadow-sm uppercase tracking-wide">
+                      Pending
+                    </div>
+                  )}
                 </div>
                 
-                {/* Delete overlay */}
-                <div className="absolute inset-0 bg-[#1B4332]/45 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                  <button
-                    onClick={() => handleDelete(item.id)}
-                    className="p-2 sm:p-3 bg-red-600 hover:bg-red-700 text-white rounded-full transition-transform transform scale-90 group-hover:scale-100 shadow-lg"
-                    title="Delete Photo"
-                  >
-                    <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </button>
+                {/* Overlay actions */}
+                <div className="absolute inset-0 bg-[#1B4332]/45 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                  <div className="flex items-center gap-2">
+                    {item.status === 'pending' && (
+                      <button
+                        onClick={() => handleApprove(item.id)}
+                        className="p-2 sm:p-3 bg-green-500 hover:bg-green-600 text-white rounded-full transition-transform transform scale-90 group-hover:scale-100 shadow-lg flex items-center gap-1"
+                        title="Approve Photo"
+                      >
+                        <Check className="w-4 h-4 sm:w-5 sm:h-5" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDelete(item.id)}
+                      className="p-2 sm:p-3 bg-red-600 hover:bg-red-700 text-white rounded-full transition-transform transform scale-90 group-hover:scale-100 shadow-lg"
+                      title="Delete Photo"
+                    >
+                      <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                    </button>
+                  </div>
                 </div>
               </div>
               {item.caption && (

@@ -31,7 +31,7 @@ export const HomePage = () => {
       try {
         const [evs, gals, blgs, about, bannerData] = await Promise.all([
           dynamicGet('events', { order: 'date', dir: 'desc' }),
-          dynamicGet('gallery', { order: 'uploaded_at', dir: 'desc' }),
+          dynamicGet('gallery', { eq: { status: 'approved' }, order: 'uploaded_at', dir: 'desc' }),
           dynamicGet('blog_posts', { order: 'published_at', dir: 'desc' }),
           dynamicGet('settings', { eq: { key: 'about_us_description' } }),
           dynamicGet('banners', { eq: { is_active: 1 }, order: 'order_index', dir: 'asc' })

@@ -31,6 +31,7 @@ export const events = sqliteTable('events', {
 export const registrations = sqliteTable('registrations', {
   id: text('id').primaryKey(),
   eventId: text('event_id').notNull().references(() => events.id),
+  userId: text('user_id').references(() => users.id),
   name: text('name').notNull(),
   email: text('email').notNull(),
   phone: text('phone').notNull(),
@@ -44,6 +45,8 @@ export const gallery = sqliteTable('gallery', {
   imageUrl: text('image_url').notNull(),
   category: text('category').notNull(),
   caption: text('caption'),
+  userId: text('user_id').references(() => users.id),
+  status: text('status').default('approved').notNull(),
   uploadedAt: integer('uploaded_at', { mode: 'timestamp' }).notNull(),
 });
 

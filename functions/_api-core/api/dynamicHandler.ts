@@ -1,37 +1,143 @@
-import { verifyToken, corsHeaders } from '../utils'
+import {
+  verifyToken,
+  getCorsHeaders,
+  jsonResponse,
+  safeErrorResponse,
+  sanitizeString,
+  isValidEmail,
+  isValidPhoneNumber,
+  checkRateLimit,
+  getClientIP,
+} from '../utils'
 import type { Env } from '../index'
 
-// ─── CONFIGURATION ─────────────────────────────────────────────────────────────
-const PUBLIC_READ_TABLES: string[] = ['events', 'gallery', 'team', 'blog_posts', 'settings', 'banners', 'map_pins']
+// ─── TABLE & COLUMN WHITELIST ──────────────────────────────────────────────────
+const VALID_TABLES = [
+  'events', 'gallery', 'team', 'blog_posts', 'settings',
+  'banners', 'map_pins', 'contact_messages', 'registrations',
+] as const
+
+type ValidTable = typeof VALID_TABLES[number]
+
+/** Columns allowed for each table (prevents schema probing) */
+const TABLE_COLUMNS: Record<ValidTable, string[]> = {
+  events: ['id', 'title', 'description', 'title_bn', 'description_bn', 'date', 'location', 'fee', 'total_spots', 'image_url', 'hover_image_url', 'additional_images', 'tags', 'sponsors', 'is_registration_open', 'created_at'],
+  gallery: ['id', 'image_url', 'category', 'caption', 'user_id', 'status', 'uploaded_at'],
+  team: ['id', 'name', 'role', 'image_url', 'facebook_url', 'linkedin_url', 'order_index'],
+  blog_posts: ['id', 'title', 'content', 'author_id', 'image_url', 'hover_image_url', 'additional_images', 'published_at'],
+  settings: ['key', 'value'],
+  banners: ['id', 'image_url', 'is_active', 'order_index', 'topic', 'start_date', 'end_date', 'created_at', 'link_type', 'link_value'],
+  map_pins: ['id', 'name', 'lat', 'lng', 'type', 'title', 'details', 'image_url', 'date_text', 'linked_event_id', 'linked_gallery_ids', 'linked_place_slug', 'created_at'],
+  contact_messages: ['id', 'name', 'email', 'message', 'status', 'created_at'],
+  registrations: ['id', 'event_id', 'user_id', 'name', 'email', 'phone', 'student_id', 'status', 'created_at'],
+}
+
+// ─── ROLE-BASED ACCESS CONTROL ─────────────────────────────────────────────────
+type Permission = '*' | 'admin'
+
+const TABLE_PERMISSIONS: Record<ValidTable, { read: Permission; write: Permission; delete: Permission }> = {
+  events:           { read: '*',     write: 'admin', delete: 'admin' },
+  gallery:          { read: '*',     write: '*',     delete: 'admin' },
+  team:             { read: '*',     write: 'admin', delete: 'admin' },
+  blog_posts:       { read: '*',     write: 'admin', delete: 'admin' },
+  settings:         { read: '*',     write: 'admin', delete: 'admin' },
+  banners:          { read: '*',     write: 'admin', delete: 'admin' },
+  map_pins:         { read: '*',     write: 'admin', delete: 'admin' },
+  contact_messages: { read: 'admin', write: '*',     delete: 'admin' },
+  registrations:    { read: 'admin', write: '*',     delete: 'admin' },
+}
+
 const TABLES_WITHOUT_ID: string[] = ['settings']
 
 const OWNER_COLUMNS: Record<string, string> = {
   'blog_posts': 'author_id',
+  'gallery': 'user_id',
+  'registrations': 'user_id',
 }
 
+// ─── DEFAULT & MAX LIMITS ──────────────────────────────────────────────────────
+const DEFAULT_LIMIT = 100
+const MAX_LIMIT = 500
+
+// ─── HELPERS ───────────────────────────────────────────────────────────────────
+function isValidTable(name: string): name is ValidTable {
+  return (VALID_TABLES as readonly string[]).includes(name)
+}
+
+function isValidColumn(table: ValidTable, column: string): boolean {
+  return TABLE_COLUMNS[table].includes(column)
+}
+
+function hasPermission(
+  permission: Permission,
+  userRole: string | undefined,
+  action: 'read' | 'write' | 'delete'
+): boolean {
+  if (permission === '*') return true
+  if (!userRole) return false
+  return userRole === permission
+}
+
+/** Validate public POST data for contact_messages and registrations */
+function validatePublicPost(table: ValidTable, body: any): string | null {
+  if (table === 'contact_messages') {
+    if (!body.name || sanitizeString(body.name, 100).length < 2) return 'Name is required (min 2 characters)'
+    if (!body.email || !isValidEmail(body.email)) return 'A valid email is required'
+    if (!body.message || sanitizeString(body.message, 5000).length < 10) return 'Message is required (min 10 characters)'
+    if (body.message && body.message.length > 5000) return 'Message is too long (max 5000 characters)'
+  }
+
+  if (table === 'registrations') {
+    if (!body.name || sanitizeString(body.name, 100).length < 2) return 'Name is required (min 2 characters)'
+    if (!body.email || !isValidEmail(body.email)) return 'A valid email is required'
+    if (!body.phone || !isValidPhoneNumber(body.phone)) return 'A valid phone number is required'
+    if (!body.event_id) return 'Event ID is required'
+  }
+
+  return null // valid
+}
+
+// ─── MAIN HANDLER ──────────────────────────────────────────────────────────────
 export async function handleDynamicRoute(url: URL, request: Request, dbClient: any, env: Env): Promise<Response | null> {
+  const cors = getCorsHeaders(request)
   const pathParts = url.pathname.split('/')
   if (pathParts.length !== 4 || pathParts[1] !== 'api' || pathParts[2] !== 'dynamic') return null
 
-  const table = pathParts[3]
+  const tableName = pathParts[3]
 
-  // Validate table name (prevent SQL injection)
-  if (!/^[a-zA-Z0-9_]+$/.test(table)) {
-    return new Response(JSON.stringify({ error: "Invalid table name" }), { status: 400, headers: corsHeaders })
+  // ── TABLE WHITELIST ─────────────────────────────────────────────
+  if (!isValidTable(tableName)) {
+    return jsonResponse({ error: "Invalid resource" }, cors, 400)
   }
 
-  // Auth check
-  const payload = await verifyToken(request, env.JWT_SECRET || 'fallback')
-  const isPublicRead = request.method === 'GET' && PUBLIC_READ_TABLES.includes(table)
-  
-  // Custom: if creating contact_messages or registrations, allow without auth
-  const isPublicPost = request.method === 'POST' && ['contact_messages', 'registrations'].includes(table)
+  const table: ValidTable = tableName
 
-  if (!payload && !isPublicRead && !isPublicPost) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders })
+  // ── AUTH & RBAC ─────────────────────────────────────────────────
+  const payload = await verifyToken(request, env.JWT_SECRET || '')
+  const userRole = payload?.role as string | undefined
+  const permissions = TABLE_PERMISSIONS[table]
+
+  // Determine required permission based on method
+  let requiredAction: 'read' | 'write' | 'delete'
+  switch (request.method) {
+    case 'GET': requiredAction = 'read'; break
+    case 'POST': case 'PUT': requiredAction = 'write'; break
+    case 'DELETE': requiredAction = 'delete'; break
+    default: return jsonResponse({ error: "Method not allowed" }, cors, 405)
   }
 
-  const ownerCol = OWNER_COLUMNS[table] || 'user_id'
+  if (!hasPermission(permissions[requiredAction], userRole, requiredAction)) {
+    return jsonResponse({ error: "Unauthorized" }, cors, 401)
+  }
+
+  // ── PUBLIC POST RATE LIMITING ───────────────────────────────────
+  if (request.method === 'POST' && permissions.write === '*') {
+    const clientIP = getClientIP(request)
+    const rl = checkRateLimit(`public-post:${table}:${clientIP}`, 5, 60_000)
+    if (!rl.allowed) {
+      return jsonResponse({ error: "Too many submissions. Please try again later." }, cors, 429)
+    }
+  }
 
   try {
     // ── GET ─────────────────────────────────────────────────────────
@@ -44,47 +150,64 @@ export async function handleDynamicRoute(url: URL, request: Request, dbClient: a
       url.searchParams.forEach((val, key) => {
         if (key.startsWith('eq_')) {
           const col = key.replace('eq_', '')
-          if (!/^[a-zA-Z0-9_]+$/.test(col)) return
+          if (!isValidColumn(table, col)) return
           if (val === 'null') { whereClauses.push(`${col} IS NULL`) }
           else { whereClauses.push(`${col} = ?`); args.push(val) }
         } else if (key.startsWith('neq_')) {
           const col = key.replace('neq_', '')
-          if (!/^[a-zA-Z0-9_]+$/.test(col)) return
+          if (!isValidColumn(table, col)) return
           if (val === 'null') { whereClauses.push(`${col} IS NOT NULL`) }
           else { whereClauses.push(`${col} != ?`); args.push(val) }
         } else if (key.startsWith('ilike_')) {
           const col = key.replace('ilike_', '')
-          if (!/^[a-zA-Z0-9_]+$/.test(col)) return
+          if (!isValidColumn(table, col)) return
           whereClauses.push(`${col} LIKE ?`); args.push(`%${val}%`)
         }
       })
 
       if (whereClauses.length > 0) sql += ` WHERE ` + whereClauses.join(' AND ')
 
+      // ── ORDER BY (column whitelist) ──────────────────────────────
       const orderCol = url.searchParams.get("order")
-      if (orderCol && /^[a-zA-Z0-9_]+$/.test(orderCol)) {
+      if (orderCol && isValidColumn(table, orderCol)) {
         sql += ` ORDER BY ${orderCol} ${url.searchParams.get("dir") === 'asc' ? 'ASC' : 'DESC'}`
       }
 
-      const limit = url.searchParams.get("limit")
-      if (limit && !isNaN(Number(limit))) { sql += ` LIMIT ?`; args.push(Number(limit)) }
+      // ── PAGINATION (enforced) ────────────────────────────────────
+      const limitParam = url.searchParams.get("limit")
+      let limit = DEFAULT_LIMIT
+      if (limitParam && !isNaN(Number(limitParam))) {
+        limit = Math.min(Math.max(1, Number(limitParam)), MAX_LIMIT)
+      }
+      sql += ` LIMIT ?`
+      args.push(limit)
 
       const res = dbClient ? await dbClient.execute({ sql, args }) : { rows: [] }
-      return new Response(JSON.stringify({ success: true, data: res.rows }), {
-        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }
-      })
+
+      // Cache public reads for 60 seconds
+      const cacheSeconds = permissions.read === '*' ? 60 : 0
+      return jsonResponse({ success: true, data: res.rows }, cors, 200, cacheSeconds)
     }
 
     // ── POST (INSERT) ──────────────────────────────────────────────
     if (request.method === "POST") {
       const body: any = await request.json()
 
+      // Validate public POST data
+      if (permissions.write === '*') {
+        const validationError = validatePublicPost(table, body)
+        if (validationError) {
+          return jsonResponse({ error: validationError }, cors, 400)
+        }
+      }
+
       // Auto-inject owner if applicable
+      const ownerCol = OWNER_COLUMNS[table] || 'user_id'
       if (payload && OWNER_COLUMNS[table] && !body[ownerCol]) {
         body[ownerCol] = payload.userId
       }
 
-      // Ensure 'admin-system' user exists in users table to prevent FOREIGN KEY constraint failure on blog posts
+      // Ensure 'admin-system' user exists for blog posts FK constraint
       if (table === 'blog_posts' && body.author_id === 'admin-system') {
         if (dbClient) {
           const checkAdmin = await dbClient.execute({
@@ -103,17 +226,25 @@ export async function handleDynamicRoute(url: URL, request: Request, dbClient: a
       // Auto-generate ID
       if (!body.id && !TABLES_WITHOUT_ID.includes(table)) body.id = crypto.randomUUID()
 
-      // Ensure created_at for all tables that might need it
-      if (!body.created_at && ['users', 'events', 'registrations', 'contact_messages', 'banners', 'map_pins'].includes(table)) {
+      // Ensure timestamps
+      if (!body.created_at && ['events', 'registrations', 'contact_messages', 'banners', 'map_pins'].includes(table)) {
         body.created_at = new Date().getTime()
       }
       if (!body.uploaded_at && table === 'gallery') body.uploaded_at = new Date().getTime()
       if (!body.published_at && table === 'blog_posts') body.published_at = new Date().getTime()
 
+      // ── COLUMN WHITELIST ─────────────────────────────────────────
       const keys = Object.keys(body)
       for (const key of keys) {
-        if (!/^[a-zA-Z0-9_]+$/.test(key)) {
-          return new Response(JSON.stringify({ error: "Invalid column name" }), { status: 400, headers: corsHeaders })
+        if (!isValidColumn(table, key)) {
+          return jsonResponse({ error: `Invalid field: ${key}` }, cors, 400)
+        }
+      }
+
+      // Sanitize string values
+      for (const key of keys) {
+        if (typeof body[key] === 'string') {
+          body[key] = sanitizeString(body[key], 10000)
         }
       }
 
@@ -123,42 +254,47 @@ export async function handleDynamicRoute(url: URL, request: Request, dbClient: a
           args: keys.map(k => body[k])
         })
       }
-      return new Response(JSON.stringify({ success: true, data: body }), {
-        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }
-      })
+      return jsonResponse({ success: true, data: body }, cors)
     }
 
     // ── PUT (UPDATE) ───────────────────────────────────────────────
     if (request.method === "PUT") {
       const body: any = await request.json()
-      if (!body.id) {
-        return new Response(JSON.stringify({ error: "Missing id for update" }), { status: 400, headers: corsHeaders })
+
+      // Settings table uses 'key' instead of 'id'
+      const identifierCol = TABLES_WITHOUT_ID.includes(table) ? 'key' : 'id'
+      if (!body[identifierCol]) {
+        return jsonResponse({ error: `Missing ${identifierCol} for update` }, cors, 400)
       }
 
-      const updateKeys = Object.keys(body).filter(k => k !== 'id')
+      const updateKeys = Object.keys(body).filter(k => k !== identifierCol)
       if (updateKeys.length === 0) {
-        return new Response(JSON.stringify({ success: true, data: body }), {
-          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }
-        })
+        return jsonResponse({ success: true, data: body }, cors)
       }
 
-      for (const key of updateKeys) {
-        if (!/^[a-zA-Z0-9_]+$/.test(key)) {
-          return new Response(JSON.stringify({ error: "Invalid column name" }), { status: 400, headers: corsHeaders })
+      // Column whitelist
+      for (const key of [...updateKeys, identifierCol]) {
+        if (!isValidColumn(table, key)) {
+          return jsonResponse({ error: `Invalid field: ${key}` }, cors, 400)
         }
       }
 
-      const args = [...updateKeys.map(k => body[k]), body.id]
+      // Sanitize string values
+      for (const key of updateKeys) {
+        if (typeof body[key] === 'string') {
+          body[key] = sanitizeString(body[key], 10000)
+        }
+      }
+
+      const args = [...updateKeys.map(k => body[k]), body[identifierCol]]
 
       if (dbClient) {
         await dbClient.execute({
-          sql: `UPDATE ${table} SET ${updateKeys.map(k => `${k} = ?`).join(', ')} WHERE id = ?`,
+          sql: `UPDATE ${table} SET ${updateKeys.map(k => `${k} = ?`).join(', ')} WHERE ${identifierCol} = ?`,
           args
         })
       }
-      return new Response(JSON.stringify({ success: true, data: body }), {
-        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }
-      })
+      return jsonResponse({ success: true, data: body }, cors)
     }
 
     // ── DELETE ──────────────────────────────────────────────────────
@@ -169,27 +305,29 @@ export async function handleDynamicRoute(url: URL, request: Request, dbClient: a
       url.searchParams.forEach((val, key) => {
         if (key.startsWith('eq_')) {
           const col = key.replace('eq_', '')
-          if (/^[a-zA-Z0-9_]+$/.test(col)) { whereClauses.push(`${col} = ?`); args.push(val) }
+          if (isValidColumn(table, col)) {
+            whereClauses.push(`${col} = ?`)
+            args.push(val)
+          }
         }
       })
 
       if (whereClauses.length === 0) {
-        return new Response(JSON.stringify({ error: "Missing delete conditions" }), { status: 400, headers: corsHeaders })
+        return jsonResponse({ error: "Missing delete conditions" }, cors, 400)
       }
 
       if (dbClient) {
-        await dbClient.execute({ sql: `DELETE FROM ${table} WHERE ${whereClauses.join(' AND ')}`, args })
+        await dbClient.execute({
+          sql: `DELETE FROM ${table} WHERE ${whereClauses.join(' AND ')}`,
+          args
+        })
       }
-      return new Response(JSON.stringify({ success: true }), {
-        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }
-      })
+      return jsonResponse({ success: true }, cors)
     }
 
   } catch (err: any) {
     console.error(`Dynamic API error [${table}]:`, err)
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }
-    })
+    return safeErrorResponse(err, cors)
   }
 
   return null

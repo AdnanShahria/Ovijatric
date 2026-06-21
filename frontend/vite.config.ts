@@ -11,6 +11,7 @@ export default defineConfig({
           const rewrites: Record<string, string> = {
             '/admin': '/admin.html',
             '/auth': '/auth.html',
+            '/member': '/member.html',
           }
           if (req.url) {
             const url = new URL(req.url, 'http://localhost')
@@ -40,6 +41,7 @@ export default defineConfig({
         main: './index.html',
         auth: './auth.html',
         admin: './admin.html',
+        member: './member.html',
       }
     }
   },

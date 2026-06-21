@@ -6,6 +6,7 @@ export const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const [activeSection, setActiveSection] = useState('#home')
+  const [user, setUser] = useState<any>(null)
   const location = useLocation()
 
   const navLinks = [
@@ -21,6 +22,13 @@ export const Navbar = () => {
       setScrolled(window.scrollY > 20)
     }
     window.addEventListener('scroll', handleScroll)
+    
+    // Check auth status
+    const storedUser = localStorage.getItem('user')
+    if (storedUser) {
+      try { setUser(JSON.parse(storedUser)) } catch (e) {}
+    }
+
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
@@ -122,12 +130,21 @@ export const Navbar = () => {
                   {link.name}
                 </Link>
               ))}
-              <Link
-                to="/auth"
-                className="ml-4 px-5 py-2 rounded-full bg-adventure-orange text-white font-semibold text-sm hover:bg-orange-600 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-adventure-orange/40 transition-all duration-300 shadow-md shadow-adventure-orange/20"
-              >
-                Member Login
-              </Link>
+              {user ? (
+                <a
+                  href="/member"
+                  className="ml-4 px-5 py-2 rounded-full border-2 border-adventure-orange text-adventure-orange font-semibold text-sm hover:bg-adventure-orange hover:text-white hover:-translate-y-0.5 hover:shadow-lg hover:shadow-adventure-orange/40 transition-all duration-300 bg-white"
+                >
+                  Dashboard
+                </a>
+              ) : (
+                <a
+                  href="/auth"
+                  className="ml-4 px-5 py-2 rounded-full bg-adventure-orange text-white font-semibold text-sm hover:bg-orange-600 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-adventure-orange/40 transition-all duration-300 shadow-md shadow-adventure-orange/20"
+                >
+                  Member Login
+                </a>
+              )}
             </div>
           </div>
           
@@ -161,13 +178,23 @@ export const Navbar = () => {
                 {link.name}
               </Link>
             ))}
-            <Link
-              to="/auth"
-              onClick={() => setIsOpen(false)}
-              className="mt-4 block w-full text-center px-4 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-adventure-orange hover:bg-orange-600"
-            >
-              Member Login
-            </Link>
+            {user ? (
+              <a
+                href="/member"
+                onClick={() => setIsOpen(false)}
+                className="mt-4 block w-full text-center px-4 py-3 border-2 border-adventure-orange rounded-md shadow-sm text-base font-medium text-adventure-orange bg-white hover:bg-adventure-orange hover:text-white transition-colors"
+              >
+                Dashboard
+              </a>
+            ) : (
+              <a
+                href="/auth"
+                onClick={() => setIsOpen(false)}
+                className="mt-4 block w-full text-center px-4 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-adventure-orange hover:bg-orange-600"
+              >
+                Member Login
+              </a>
+            )}
           </div>
         </div>
       )}

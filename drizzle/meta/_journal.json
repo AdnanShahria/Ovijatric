@@ -64,6 +64,13 @@
       "when": 1781847210306,
       "tag": "0008_sharp_landau",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1782038478625,
+      "tag": "0009_minor_gunslinger",
+      "breakpoints": true
     }
   ]
 }

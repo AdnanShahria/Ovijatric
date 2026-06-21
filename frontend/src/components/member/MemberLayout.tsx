@@ -1,25 +1,22 @@
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Image as ImageIcon, Calendar, LogOut, Menu, X, BookOpen, Info, MapPin, Compass } from 'lucide-react'
+import { Link, Outlet, useLocation } from 'react-router-dom'
+import { LayoutDashboard, CalendarDays, Ticket, ImageIcon, LogOut, Menu, X, Compass, Home } from 'lucide-react'
 import { useState } from 'react'
 
-export function AppLayout() {
+export function MemberLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const location = useLocation()
-  const navigate = useNavigate()
 
   const handleLogout = () => {
     localStorage.removeItem('auth_token')
-    window.location.href = '/admin/auth'
+    localStorage.removeItem('user')
+    window.location.href = '/'
   }
 
   const navItems = [
-    { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
-    { name: 'Banners', path: '/admin/banners', icon: ImageIcon },
-    { name: 'Events', path: '/admin/events', icon: Calendar },
-    { name: 'Gallery', path: '/admin/gallery', icon: ImageIcon },
-    { name: 'Blog', path: '/admin/blog', icon: BookOpen },
-    { name: 'Map Pins', path: '/admin/map-pins', icon: MapPin },
-    { name: 'About Us', path: '/admin/about', icon: Info },
+    { name: 'Dashboard', path: '/member', icon: LayoutDashboard },
+    { name: 'Browse Events', path: '/member/events', icon: CalendarDays },
+    { name: 'My Events', path: '/member/my-events', icon: Ticket },
+    { name: 'My Gallery', path: '/member/gallery', icon: ImageIcon },
   ]
 
   return (
@@ -40,9 +37,9 @@ export function AppLayout() {
         <div className="h-full flex flex-col">
           {/* Sidebar Header */}
           <div className="h-16 flex items-center px-6 border-b border-[#1B4332]/10 shrink-0">
-            <Link to="/admin" className="flex items-center gap-2" onClick={() => setIsSidebarOpen(false)}>
+            <Link to="/member" className="flex items-center gap-2" onClick={() => setIsSidebarOpen(false)}>
               <Compass className="w-6 h-6 text-[#FF6B35]" />
-              <h1 className="text-xl font-bold text-[#1B4332] tracking-wider font-garamond">Ovijatrik Admin</h1>
+              <h1 className="text-xl font-bold text-[#1B4332] tracking-wider font-garamond">Member Panel</h1>
             </Link>
             <button
               className="ml-auto lg:hidden text-[#1B4332]/60 hover:text-[#1B4332]"
@@ -78,7 +75,14 @@ export function AppLayout() {
           </nav>
 
           {/* Sidebar Footer */}
-          <div className="p-4 border-t border-[#1B4332]/10 shrink-0">
+          <div className="p-4 border-t border-[#1B4332]/10 shrink-0 space-y-2">
+            <a
+              href="/"
+              className="flex items-center gap-3 px-3.5 py-2.5 w-full rounded-xl bg-white/80 border border-[#1B4332]/10 text-[#1B4332]/85 shadow-sm hover:bg-[#1B4332]/5 hover:text-[#1B4332] transition-all duration-200"
+            >
+              <Home className="w-4.5 h-4.5 shrink-0" />
+              <span className="text-sm font-semibold tracking-wide">Back to Home</span>
+            </a>
             <button
               onClick={handleLogout}
               className="flex items-center gap-3 px-3.5 py-2.5 w-full rounded-xl bg-white/80 border border-[#1B4332]/10 text-[#1B4332]/85 shadow-sm hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all duration-200 transform hover:translate-y-[-1px]"
@@ -103,7 +107,7 @@ export function AppLayout() {
           </button>
           <div className="ml-4 flex items-center gap-2">
             <Compass className="w-5 h-5 text-[#FF6B35]" />
-            <span className="font-extrabold text-[#1B4332] tracking-wider font-garamond text-lg">Ovijatrik Admin</span>
+            <span className="font-extrabold text-[#1B4332] tracking-wider font-garamond text-lg">Member Panel</span>
           </div>
         </header>
 
@@ -115,4 +119,3 @@ export function AppLayout() {
     </div>
   )
 }
-

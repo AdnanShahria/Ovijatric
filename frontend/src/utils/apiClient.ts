@@ -1,47 +1,96 @@
 const API_URL = ''
+const REQUEST_TIMEOUT_MS = 15_000 // 15 second timeout
 
 function getAuthHeaders(): Record<string, string> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   const token = localStorage.getItem('auth_token')
-  if (token) headers['Authorization'] = `Bearer ${token}`
+  if (token && isValidTokenFormat(token)) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
   return headers
 }
 
-export async function apiGet<T = any>(path: string): Promise<{ success: boolean; data: T; error?: string }> {
-  const res = await fetch(`${API_URL}${path}`, { headers: getAuthHeaders() })
-  const json = await res.json()
-  if (res.status === 401) {
-    localStorage.removeItem('auth_token')
-    localStorage.removeItem('auth_user')
-    window.location.href = '/auth'
+/** Basic JWT format validation (3 parts, base64url) */
+function isValidTokenFormat(token: string): boolean {
+  const parts = token.split('.')
+  if (parts.length !== 3) return false
+  return parts.every(part => /^[A-Za-z0-9_-]+$/.test(part))
+}
+
+/** Fetch wrapper with timeout using AbortController */
+async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(url, { ...options, signal: controller.signal })
+  } finally {
+    clearTimeout(timeoutId)
   }
-  return json
+}
+
+export async function apiGet<T = any>(path: string): Promise<{ success: boolean; data: T; error?: string }> {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}${path}`, { headers: getAuthHeaders() })
+    const json = await res.json()
+    if (res.status === 401) {
+      localStorage.removeItem('auth_token')
+      localStorage.removeItem('auth_user')
+      window.location.href = '/auth'
+    }
+    return json
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      return { success: false, data: null as any, error: 'Request timed out. Please try again.' }
+    }
+    return { success: false, data: null as any, error: 'Network error. Please check your connection.' }
+  }
 }
 
 export async function apiPost<T = any>(path: string, body: any): Promise<{ success: boolean; data: T; error?: string }> {
-  const res = await fetch(`${API_URL}${path}`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(body),
-  })
-  return res.json()
+  try {
+    const res = await fetchWithTimeout(`${API_URL}${path}`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(body),
+    })
+    return res.json()
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      return { success: false, data: null as any, error: 'Request timed out. Please try again.' }
+    }
+    return { success: false, data: null as any, error: 'Network error. Please check your connection.' }
+  }
 }
 
 export async function apiPut<T = any>(path: string, body: any): Promise<{ success: boolean; data: T; error?: string }> {
-  const res = await fetch(`${API_URL}${path}`, {
-    method: 'PUT',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(body),
-  })
-  return res.json()
+  try {
+    const res = await fetchWithTimeout(`${API_URL}${path}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(body),
+    })
+    return res.json()
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      return { success: false, data: null as any, error: 'Request timed out. Please try again.' }
+    }
+    return { success: false, data: null as any, error: 'Network error. Please check your connection.' }
+  }
 }
 
 export async function apiDelete(path: string): Promise<{ success: boolean; error?: string }> {
-  const res = await fetch(`${API_URL}${path}`, {
-    method: 'DELETE',
-    headers: getAuthHeaders(),
-  })
-  return res.json()
+  try {
+    const res = await fetchWithTimeout(`${API_URL}${path}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    })
+    return res.json()
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      return { success: false, error: 'Request timed out. Please try again.' }
+    }
+    return { success: false, error: 'Network error. Please check your connection.' }
+  }
 }
 
 interface DynamicQueryOptions {
@@ -112,8 +161,6 @@ async function cropToAspectRatio(file: File, aspectRatio: number): Promise<File>
         offsetY = (height - newHeight) / 2;
       }
 
-      console.log(`Image Ratio Fixation: Original: ${width}x${height} (Ratio: ${currentRatio.toFixed(2)}) -> Fixed: ${newWidth}x${newHeight} (Ratio: ${(newWidth/newHeight).toFixed(2)}, Target: ${aspectRatio.toFixed(2)})`);
-
       canvas.width = newWidth;
       canvas.height = newHeight;
       ctx.drawImage(img, offsetX, offsetY, newWidth, newHeight, 0, 0, newWidth, newHeight);
@@ -132,7 +179,6 @@ async function cropToAspectRatio(file: File, aspectRatio: number): Promise<File>
 export async function uploadImage(file: File, aspectRatio?: number, maxSizeMB: number = 0.6): Promise<{ success: boolean; url?: string; error?: string }> {
   try {
     let processedFile = file;
-    console.log(`Image size before processing: ${(file.size / 1024).toFixed(2)} KB`);
 
     if (aspectRatio) {
       processedFile = await cropToAspectRatio(processedFile, aspectRatio);
@@ -144,10 +190,6 @@ export async function uploadImage(file: File, aspectRatio?: number, maxSizeMB: n
       useWebWorker: true
     };
     processedFile = await imageCompression(processedFile, options);
-    console.log(`Image size after processing: ${(processedFile.size / 1024).toFixed(2)} KB`);
-
-    const pct = ((file.size - processedFile.size) / file.size * 100).toFixed(2);
-    console.log(`Image compression: ${pct}% (Original: ${(file.size / 1024).toFixed(2)} KB, Compressed: ${(processedFile.size / 1024).toFixed(2)} KB)`);
 
     const formData = new FormData()
     formData.append('image', processedFile)
@@ -155,7 +197,7 @@ export async function uploadImage(file: File, aspectRatio?: number, maxSizeMB: n
     const headers: Record<string, string> = {}
     if (token) headers['Authorization'] = `Bearer ${token}`
 
-    const res = await fetch('/api/upload', {
+    const res = await fetchWithTimeout('/api/upload', {
       method: 'POST',
       headers,
       body: formData
@@ -167,6 +209,9 @@ export async function uploadImage(file: File, aspectRatio?: number, maxSizeMB: n
     }
     return { success: false, error: json.error || 'Failed to upload image' }
   } catch (error: any) {
+    if (error.name === 'AbortError') {
+      return { success: false, error: 'Upload timed out. Please try again.' }
+    }
     return { success: false, error: error.message || 'Image processing failed' }
   }
 }
@@ -198,9 +243,6 @@ export async function uploadImageWithProgress(
     };
     processedFile = await imageCompression(processedFile, options);
 
-    const pct = ((file.size - processedFile.size) / file.size * 100).toFixed(2);
-    console.log(`Image compression: ${pct}% (Original: ${(file.size / 1024).toFixed(2)} KB, Compressed: ${(processedFile.size / 1024).toFixed(2)} KB)`);
-
     if (onProgress) onProgress('uploading', 0);
 
     return new Promise((resolve) => {
@@ -209,6 +251,9 @@ export async function uploadImageWithProgress(
       formData.append('image', processedFile);
 
       xhr.open('POST', '/api/upload');
+
+      // Set timeout
+      xhr.timeout = REQUEST_TIMEOUT_MS;
 
       const token = localStorage.getItem('auth_token');
       if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
@@ -230,7 +275,7 @@ export async function uploadImageWithProgress(
             } else {
               resolve({ success: false, error: json.error || 'Failed to upload image' });
             }
-          } catch (e) {
+          } catch {
             resolve({ success: false, error: 'Invalid server response' });
           }
         } else {
@@ -240,6 +285,10 @@ export async function uploadImageWithProgress(
 
       xhr.onerror = () => {
         resolve({ success: false, error: 'Network error during upload' });
+      };
+
+      xhr.ontimeout = () => {
+        resolve({ success: false, error: 'Upload timed out. Please try again.' });
       };
 
       xhr.send(formData);
