@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { dynamicGet, dynamicInsert } from '../../utils/apiClient'
-import { Upload, ImageIcon, Clock, CheckCircle2, X } from 'lucide-react'
+import { Upload, ImageIcon, Clock, CheckCircle2, X, ArrowLeft, Folder } from 'lucide-react'
 
 export function MemberGalleryPage() {
   const [submissions, setSubmissions] = useState<any[]>([])
@@ -12,7 +12,14 @@ export function MemberGalleryPage() {
   const [file, setFile] = useState<File | null>(null)
   const [caption, setCaption] = useState('')
   const [category, setCategory] = useState('General')
+  const [selectedFolder, setSelectedFolder] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+
+  const showToast = (text: string, type: 'success' | 'error' = 'success') => {
+    setToastMessage({ type, text });
+    setTimeout(() => setToastMessage(null), 4000);
+  }
 
   useEffect(() => {
     fetchSubmissions()
@@ -36,7 +43,10 @@ export function MemberGalleryPage() {
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!file || !user) return
+    if (!file || !caption.trim() || !user) {
+      showToast('Please select a file and provide a caption.', 'error')
+      return
+    }
 
     setUploading(true)
     try {
@@ -74,10 +84,10 @@ export function MemberGalleryPage() {
       if (fileInputRef.current) fileInputRef.current.value = ''
       await fetchSubmissions()
       
-      alert('Photo submitted successfully! It will appear in the public gallery once approved by an admin.')
+      showToast('Photo submitted successfully! It will appear once approved.')
     } catch (error: any) {
       console.error('Failed to submit photo:', error)
-      alert(`Error: ${error.message}`)
+      showToast(`Error: ${error.message}`, 'error')
     } finally {
       setUploading(false)
     }
@@ -88,7 +98,13 @@ export function MemberGalleryPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 relative">
+      {toastMessage && (
+        <div className={`fixed bottom-4 right-4 px-4 py-3 rounded-xl shadow-2xl z-50 flex items-center gap-2 transform transition-all duration-300 translate-y-0 opacity-100 ${toastMessage.type === 'success' ? 'bg-[#1B4332] text-white' : 'bg-red-600 text-white'}`}>
+          {toastMessage.type === 'success' ? <CheckCircle2 className="w-5 h-5 text-green-400" /> : <X className="w-5 h-5" />}
+          <span className="font-medium text-sm">{toastMessage.text}</span>
+        </div>
+      )}
       <div>
         <h1 className="text-3xl font-bold text-[#1B4332] mb-2">My Gallery Contributions</h1>
         <p className="text-slate-600">Share your adventure moments with the community. Photos require admin approval before going public.</p>
@@ -140,13 +156,14 @@ export function MemberGalleryPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Caption (Optional)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Caption / SEO Title *</label>
               <input 
                 type="text" 
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
                 className="w-full px-3 py-2 border border-emerald-200 rounded-lg focus:ring-2 focus:ring-adventure-orange outline-none" 
                 placeholder="What's happening in this photo?"
+                required
               />
             </div>
             <button
@@ -162,39 +179,76 @@ export function MemberGalleryPage() {
 
       {/* Submissions List */}
       <div>
-        <h2 className="text-xl font-bold text-[#1B4332] mb-6">Your Past Submissions</h2>
+        <h2 className="text-xl font-bold text-[#1B4332] mb-6">Your Past Submissions by Folder</h2>
         {submissions.length === 0 ? (
           <div className="p-12 text-center text-slate-500 bg-white rounded-2xl border border-dashed border-emerald-200">
             You haven't submitted any photos yet.
           </div>
+        ) : selectedFolder ? (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between bg-white p-4 rounded-xl shadow-sm border border-[#1B4332]/10">
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => setSelectedFolder(null)}
+                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-500"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+                <h2 className="text-lg font-bold text-[#1B4332] font-garamond flex items-center gap-2">
+                  <Folder className="w-5 h-5 text-[#FF6B35]" />
+                  {selectedFolder}
+                </h2>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              {submissions.filter(s => s.category === selectedFolder).map(photo => (
+                <div key={photo.id} className="bg-white border border-[#1B4332]/10 shadow-sm rounded-xl overflow-hidden relative group">
+                  <div className="aspect-square bg-slate-50 relative">
+                    <img src={photo.image_url} alt={photo.caption || 'Photo'} className="w-full h-full object-cover" />
+                    
+                    <div className="absolute top-2 left-2 flex gap-1">
+                      {photo.status === 'approved' ? (
+                        <span className="flex items-center gap-1 bg-green-100/90 text-green-700 backdrop-blur-sm px-2 py-1 rounded-lg text-[10px] font-bold shadow-sm uppercase"><CheckCircle2 className="w-3 h-3" /></span>
+                      ) : photo.status === 'rejected' ? (
+                        <span className="flex items-center gap-1 bg-red-100/90 text-red-700 backdrop-blur-sm px-2 py-1 rounded-lg text-[10px] font-bold shadow-sm uppercase"><X className="w-3 h-3" /></span>
+                      ) : (
+                        <span className="flex items-center gap-1 bg-amber-100/90 text-amber-700 backdrop-blur-sm px-2 py-1 rounded-lg text-[10px] font-bold shadow-sm uppercase"><Clock className="w-3 h-3" /></span>
+                      )}
+                    </div>
+                  </div>
+                  {photo.caption && (
+                    <div className="p-3 border-t border-[#1B4332]/5">
+                      <p className="text-slate-600 text-xs line-clamp-2">{photo.caption}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {submissions.map(sub => (
-              <div key={sub.id} className="relative group bg-white rounded-xl overflow-hidden shadow-sm border border-[#1B4332]/10">
-                <div className="aspect-square bg-slate-100 relative">
-                  <img src={sub.image_url} className="w-full h-full object-cover" alt={sub.caption} />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3">
-                    <p className="text-white text-xs font-medium truncate">{sub.caption || 'No caption'}</p>
-                    <p className="text-white/80 text-[10px] mt-0.5">{sub.category}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {(Object.entries(submissions.reduce((acc, sub) => {
+              if (!acc[sub.category]) acc[sub.category] = [];
+              acc[sub.category].push(sub);
+              return acc;
+            }, {} as Record<string, any[]>)) as [string, any[]][]).map(([category, subs]) => (
+              <div 
+                key={category} 
+                onClick={() => setSelectedFolder(category)}
+                className="bg-white rounded-2xl shadow-sm border border-[#1B4332]/10 overflow-hidden flex flex-col hover:shadow-md transition-all cursor-pointer group"
+              >
+                <div className="relative w-full h-48 bg-slate-100 overflow-hidden">
+                  <img src={subs[0].image_url} alt={category} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
+                    <p className="text-white text-xs font-medium truncate">Latest: {subs[0].caption || 'No caption'}</p>
                   </div>
                 </div>
-                <div className="p-2.5 flex items-center justify-between bg-white">
-                  <span className="text-[10px] text-slate-500">
-                    {new Date(Number(sub.uploaded_at)).toLocaleDateString()}
-                  </span>
-                  {sub.status === 'approved' ? (
-                    <span className="flex items-center gap-1 text-green-600 text-[10px] font-bold" title="Approved & Public">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Approved
-                    </span>
-                  ) : sub.status === 'rejected' ? (
-                    <span className="flex items-center gap-1 text-red-500 text-[10px] font-bold" title="Rejected by Admin">
-                      <X className="w-3.5 h-3.5" /> Rejected
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-amber-500 text-[10px] font-bold" title="Waiting for Admin Review">
-                      <Clock className="w-3.5 h-3.5" /> Pending
-                    </span>
-                  )}
+                <div className="p-5 flex-1 flex flex-col">
+                  <h3 className="text-xl font-bold text-[#1B4332] mb-1 group-hover:text-[#FF6B35] transition-colors">{category}</h3>
+                  <div className="flex items-center justify-between text-sm text-slate-600 font-medium mt-auto">
+                    <span className="flex items-center gap-1.5"><ImageIcon className="w-4 h-4" /> {subs.length} {subs.length === 1 ? 'Photo' : 'Photos'}</span>
+                  </div>
                 </div>
               </div>
             ))}

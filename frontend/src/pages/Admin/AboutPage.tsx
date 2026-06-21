@@ -183,9 +183,9 @@ export function AboutPage() {
         </div>
 
         {loadingText ? (
-          <div className="flex items-center gap-2 text-slate-500">
-            <Loader2 className="w-4 h-4 animate-spin text-[#FF6B35]" />
-            <span className="text-xs">Loading description...</span>
+          <div className="space-y-3 animate-pulse">
+            <div className="w-full h-24 sm:h-32 bg-slate-200 rounded-xl"></div>
+            <div className="w-32 h-9 bg-slate-200 rounded-xl"></div>
           </div>
         ) : (
           <div className="space-y-3">
@@ -224,8 +224,19 @@ export function AboutPage() {
         </div>
 
         {loadingTeam ? (
-          <div className="flex justify-center py-10">
-            <Loader2 className="w-8 h-8 text-[#FF6B35] animate-spin" />
+          <div className="bg-white border border-[#1B4332]/10 rounded-2xl overflow-hidden shadow-sm animate-pulse mt-4">
+            <div className="h-12 bg-slate-100 border-b border-[#1B4332]/10"></div>
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 border-b border-[#1b4332]/5">
+                <div className="w-10 h-10 bg-slate-200 rounded-full shrink-0"></div>
+                <div className="flex-1 w-full space-y-2">
+                  <div className="h-4 bg-slate-200 rounded w-1/3"></div>
+                  <div className="h-3 bg-slate-200 rounded w-1/4"></div>
+                </div>
+                <div className="w-24 h-4 bg-slate-200 rounded hidden sm:block"></div>
+                <div className="w-16 h-4 bg-slate-200 rounded hidden sm:block"></div>
+              </div>
+            ))}
           </div>
         ) : team.length === 0 ? (
           <div className="bg-white rounded-2xl border border-[#1B4332]/10 p-6 sm:p-8 text-center text-[#1B4332]">

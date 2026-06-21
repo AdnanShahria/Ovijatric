@@ -1,6 +1,9 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Plus, Image as ImageIcon, Trash2, X, Upload, Loader2, AlertTriangle, Check, ArrowLeft, Folder } from 'lucide-react'
 import { dynamicGet, dynamicInsert, dynamicDelete, dynamicUpdate, uploadImage } from '../../utils/apiClient'
+import { createPortal } from 'react-dom'
+import { Link } from 'react-router-dom'
+import { slugify } from '../../utils/slugify'
 
 interface GalleryItem {
   id: string
@@ -42,9 +45,19 @@ export function GalleryPage() {
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 })
   const [uploadFinished, setUploadFinished] = useState(false)
+
+  // Background Upload State
+  const [backgroundUpload, setBackgroundUpload] = useState<{ total: number, current: number } | null>(null)
+
+  // Toast State
+  const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+  const showToast = (text: string, type: 'success' | 'error' = 'success') => {
+    setToastMessage({ type, text });
+    setTimeout(() => setToastMessage(null), 4000);
+  }
   
   // Add Photo Form State
-  const [uploadedUrls, setUploadedUrls] = useState<string[]>([])
+  const [uploadedFiles, setUploadedFiles] = useState<{file: File, preview: string}[]>([])
   const [categoryType, setCategoryType] = useState('Standard') // 'Standard', 'Event', 'Blog', 'Custom'
   const [category, setCategory] = useState('Trekking')
   const [customCategory, setCustomCategory] = useState('')
@@ -95,7 +108,7 @@ export function GalleryPage() {
   }, [items])
 
   const openAddModal = () => {
-    setUploadedUrls([])
+    setUploadedFiles([])
     setCategoryType('Standard')
     setCategory('Trekking')
     setCustomCategory('')
@@ -137,17 +150,24 @@ export function GalleryPage() {
     try {
       for (let i = 0; i < parsedGallery.length; i++) {
         const item = parsedGallery[i]
-        await dynamicInsert('gallery', {
-          image_url: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop',
+        const payload: Partial<GalleryItem & { linked_event_id?: string; linked_blog_post_id?: string; linked_map_pin_id?: string }> = {
+          image_url: item.image_url || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop',
           category: item.category || 'Other',
-          caption: item.caption || null
-        })
+          caption: item.caption || null,
+          status: 'approved'
+        };
+        if (item.linked_event_id) payload.linked_event_id = item.linked_event_id;
+        if (item.linked_blog_post_id) payload.linked_blog_post_id = item.linked_blog_post_id;
+        if (item.linked_map_pin_id) payload.linked_map_pin_id = item.linked_map_pin_id;
+
+        await dynamicInsert('gallery', payload)
         setUploadProgress(prev => ({ ...prev, done: i + 1 }))
       }
       setUploadFinished(true)
       fetchData()
+      showToast('Bulk import successful!')
     } catch (err: any) {
-      alert(`Error importing: ${err.message || 'failed'}`)
+      showToast(`Error importing: ${err.message || 'failed'}`, 'error')
     } finally {
       setIsUploading(false)
     }
@@ -161,24 +181,14 @@ export function GalleryPage() {
     setUploadFinished(false)
   }
 
-  const handleMultipleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMultipleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     if (files.length === 0) return
-    try {
-      setUploading(true)
-      const newUrls: string[] = []
-      for (const file of files) {
-        const res = await uploadImage(file)
-        if (res.success && res.url) {
-          newUrls.push(res.url)
-        }
-      }
-      setUploadedUrls(prev => [...prev, ...newUrls])
-    } catch (err) {
-      alert('Error uploading multiple images')
-    } finally {
-      setUploading(false)
-    }
+    const newFiles = files.map(file => ({
+      file,
+      preview: URL.createObjectURL(file)
+    }))
+    setUploadedFiles(prev => [...prev, ...newFiles])
   }
 
   const getFinalCategory = () => {
@@ -198,28 +208,72 @@ export function GalleryPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     const finalCategory = getFinalCategory()
-    if (uploadedUrls.length === 0 || !finalCategory) {
-      alert('Please select at least one image and specify a category')
+    if (uploadedFiles.length === 0 || !finalCategory || !caption.trim()) {
+      showToast('Please select at least one image, specify a category, and provide a caption/title.', 'error')
       return
     }
 
+    const filesToUpload = [...uploadedFiles]
+    const currentCategory = finalCategory
+    const currentCaption = caption
+    const isEvent = categoryType === 'Event'
+    const eventId = selectedEventId
+    const isBlog = categoryType === 'Blog'
+    const blogId = selectedBlogId
+
+    // 1. Close modal immediately
+    setModalOpen(false)
+
+    // 2. Optimistic UI update
+    const optimisticItems: GalleryItem[] = filesToUpload.map((item, index) => ({
+      id: `temp-${Date.now()}-${index}`,
+      image_url: item.preview, // Use local blob preview temporarily
+      category: currentCategory,
+      caption: currentCaption,
+      status: 'approved',
+      uploaded_at: Date.now()
+    }))
+
+    setItems(prev => [...optimisticItems, ...prev])
+    setBackgroundUpload({ total: filesToUpload.length, current: 0 })
+
+    // 3. Background Cloud Upload
     try {
-      setSaving(true)
-      for (const url of uploadedUrls) {
-        const payload: Partial<GalleryItem> = {
-          image_url: url,
-          category: finalCategory,
-          caption: caption || null,
-          status: 'approved'
+      let count = 0
+      for (let i = 0; i < filesToUpload.length; i++) {
+        const item = filesToUpload[i]
+        const res = await uploadImage(item.file)
+        if (res.success && res.url) {
+          const payload: Partial<GalleryItem & { linked_event_id?: string; linked_blog_post_id?: string }> = {
+            image_url: res.url,
+            category: currentCategory,
+            caption: currentCaption || null,
+            status: 'approved'
+          }
+          if (isEvent && eventId) {
+            payload.linked_event_id = eventId;
+          }
+          if (isBlog && blogId) {
+            payload.linked_blog_post_id = blogId;
+          }
+          await dynamicInsert('gallery', payload)
+          count++
         }
-        await dynamicInsert('gallery', payload)
+        setBackgroundUpload({ total: filesToUpload.length, current: i + 1 })
       }
-      setModalOpen(false)
-      fetchData()
+      
+      // Refetch actual data with real URLs
+      await fetchData()
+      // Cleanup local previews
+      setTimeout(() => {
+        filesToUpload.forEach(f => URL.revokeObjectURL(f.preview))
+      }, 1000)
+      showToast(`Successfully saved ${count} photos!`)
     } catch (err) {
-      alert('Failed to add photo(s)')
+      showToast('Failed to upload some photo(s)', 'error')
+      fetchData() // Refresh to clear any failed optimistic items
     } finally {
-      setSaving(false)
+      setTimeout(() => setBackgroundUpload(null), 2000)
     }
   }
 
@@ -229,8 +283,9 @@ export function GalleryPage() {
     try {
       await dynamicDelete('gallery', { id })
       fetchData()
+      showToast('Photo deleted successfully')
     } catch (err) {
-      alert('Failed to delete photo')
+      showToast('Failed to delete photo', 'error')
       fetchData()
     }
   }
@@ -239,8 +294,9 @@ export function GalleryPage() {
     try {
       await dynamicUpdate('gallery', { id, status: 'approved' })
       fetchData()
+      showToast('Photo approved successfully')
     } catch (err) {
-      alert('Failed to approve photo')
+      showToast('Failed to approve photo', 'error')
     }
   }
 
@@ -255,28 +311,47 @@ export function GalleryPage() {
     .filter(cat => cat && !['Trekking', 'Camping', 'Cycling', 'Running', 'Other'].includes(cat) && !cat.startsWith('Event:') && !cat.startsWith('Blog:'))
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-4 sm:space-y-6 bg-[#EAF2ED] p-4 sm:p-6 rounded-3xl -m-4 sm:-m-6 min-h-[calc(100vh-2rem)] relative">
+      {toastMessage && createPortal(
+        <div className={`fixed bottom-4 right-4 px-4 py-3 rounded-xl shadow-2xl z-[99999] flex items-center gap-2 transform transition-all duration-300 translate-y-0 opacity-100 ${toastMessage.type === 'success' ? 'bg-[#1B4332] text-white' : 'bg-red-600 text-white'}`}>
+          {toastMessage.type === 'success' ? <Check className="w-5 h-5 text-green-400" /> : <X className="w-5 h-5" />}
+          <span className="font-medium text-sm">{toastMessage.text}</span>
+        </div>,
+        document.body
+      )}
+
+      {/* Background Upload Progress Toast */}
+      {backgroundUpload && createPortal(
+        <div className="fixed bottom-20 right-4 w-72 bg-white rounded-xl shadow-2xl z-[99999] border border-[#1B4332]/10 overflow-hidden transform transition-all duration-300 translate-y-0 opacity-100">
+          <div className="p-3 bg-[#1B4332] text-white flex items-center justify-between">
+            <span className="font-semibold text-sm flex items-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Uploading to Cloud...
+            </span>
+            <span className="text-xs font-bold bg-white/20 px-2 py-0.5 rounded-full">
+              {Math.round((backgroundUpload.current / backgroundUpload.total) * 100)}%
+            </span>
+          </div>
+          <div className="p-3">
+            <div className="flex justify-between text-xs text-slate-500 mb-1.5 font-medium">
+              <span>Processing photos</span>
+              <span>{backgroundUpload.current} of {backgroundUpload.total}</span>
+            </div>
+            <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+              <div 
+                className="bg-[#FF6B35] h-full transition-all duration-300" 
+                style={{ width: `${(backgroundUpload.current / backgroundUpload.total) * 100}%` }}
+              ></div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          {selectedFolder ? (
-            <div className="flex items-center gap-3">
-              <button 
-                onClick={() => setSelectedFolder(null)}
-                className="p-2 bg-white border border-[#1B4332]/10 rounded-xl hover:bg-[#1B4332]/5 text-[#1B4332] transition-colors shadow-sm"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </button>
-              <div>
-                <h2 className="text-xl sm:text-2xl font-bold font-garamond text-[#1B4332] tracking-tight">{selectedFolder}</h2>
-                <p className="text-xs sm:text-sm text-slate-500 mt-0.5">Manage photos in this folder</p>
-              </div>
-            </div>
-          ) : (
-            <div>
-              <h2 className="text-xl sm:text-2xl font-bold font-garamond text-[#1B4332] tracking-tight">Manage Gallery</h2>
-              <p className="text-xs sm:text-sm text-slate-500 mt-0.5">Upload and categorize photos of club memories</p>
-            </div>
-          )}
+          <h2 className="text-xl sm:text-2xl font-bold font-garamond text-[#1B4332] tracking-tight">Manage Gallery</h2>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">Upload and categorize photos of club memories</p>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <button 
@@ -291,89 +366,22 @@ export function GalleryPage() {
             className="flex items-center justify-center gap-1.5 bg-[#FF6B35] hover:bg-[#E0531D] text-white px-3.5 py-1.5 rounded-xl text-sm font-semibold transition-colors flex-1 sm:flex-initial shadow-sm shadow-[#FF6B35]/10"
           >
             <Plus className="w-4 h-4" />
-            Add Photo
+            Create An Album
           </button>
         </div>
       </div>
-
-      {selectedFolder && (
-        <div className="flex bg-white border border-[#1B4332]/10 rounded-xl p-1 w-full max-w-sm">
-          {['all', 'pending', 'approved'].map(status => (
-            <button
-              key={status}
-              onClick={() => setFilterStatus(status)}
-              className={`flex-1 py-1.5 text-xs sm:text-sm font-semibold rounded-lg capitalize transition-colors ${
-                filterStatus === status 
-                  ? 'bg-[#1B4332] text-white' 
-                  : 'text-slate-500 hover:text-[#1B4332] hover:bg-[#1B4332]/5'
-              }`}
-            >
-              {status}
-            </button>
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse">
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <div key={i} className="bg-white rounded-2xl shadow-sm border border-[#1B4332]/10 overflow-hidden flex flex-col h-[280px]">
+              <div className="w-full h-48 bg-slate-200"></div>
+              <div className="p-5 flex-1 flex flex-col gap-2">
+                <div className="h-6 bg-slate-200 rounded w-2/3"></div>
+                <div className="h-4 bg-slate-200 rounded w-1/3 mt-auto"></div>
+              </div>
+            </div>
           ))}
         </div>
-      )}
-
-      {loading ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="w-8 h-8 text-[#FF6B35] animate-spin" />
-        </div>
-      ) : selectedFolder ? (
-        /* Detailed View of Photos inside a Folder */
-        filteredPhotos.length === 0 ? (
-          <div className="bg-white rounded-xl border border-[#1B4332]/10 shadow-sm p-6 sm:p-8 text-center">
-            <div className="w-12 h-12 bg-[#1B4332]/5 rounded-xl flex items-center justify-center mx-auto mb-3">
-              <ImageIcon className="w-6 h-6 text-[#1B4332]/60" />
-            </div>
-            <h3 className="text-base sm:text-lg font-semibold text-[#1B4332] mb-1.5">No Photos Found</h3>
-            <p className="text-xs sm:text-sm text-slate-500 max-w-xs mx-auto mb-4">
-              There are no photos in this folder matching the current filter.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
-            {filteredPhotos.map((item) => (
-              <div key={item.id} className="bg-white border border-[#1B4332]/10 shadow-sm hover:shadow-md transition-all rounded-xl overflow-hidden group relative flex flex-col">
-                <div className="aspect-square bg-slate-50 relative flex-grow">
-                  <img src={item.image_url} alt={item.caption || 'Gallery photo'} className="w-full h-full object-cover" />
-                  <div className="absolute top-1.5 left-1.5 flex flex-col gap-1">
-                    {item.status === 'pending' && (
-                      <div className="bg-amber-100/90 text-amber-700 backdrop-blur-sm border border-amber-200 px-2 py-0.5 rounded-lg text-[9px] font-bold shadow-sm uppercase tracking-wide">
-                        Pending
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="absolute inset-0 bg-[#1B4332]/45 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
-                    <div className="flex items-center gap-2">
-                      {item.status === 'pending' && (
-                        <button
-                          onClick={() => handleApprove(item.id)}
-                          className="p-2 sm:p-3 bg-green-500 hover:bg-green-600 text-white rounded-full transition-transform transform scale-90 group-hover:scale-100 shadow-lg flex items-center gap-1"
-                          title="Approve Photo"
-                        >
-                          <Check className="w-4 h-4 sm:w-5 sm:h-5" />
-                        </button>
-                      )}
-                      <button
-                        onClick={() => handleDelete(item.id)}
-                        className="p-2 sm:p-3 bg-red-600 hover:bg-red-700 text-white rounded-full transition-transform transform scale-90 group-hover:scale-100 shadow-lg"
-                        title="Delete Photo"
-                      >
-                        <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                {item.caption && (
-                  <div className="p-2 sm:p-3 border-t border-[#1B4332]/5">
-                    <p className="text-slate-600 text-[10px] sm:text-xs line-clamp-1 sm:line-clamp-2 leading-snug">{item.caption}</p>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )
       ) : (
         /* Folder Grid View */
         folders.length === 0 ? (
@@ -394,14 +402,14 @@ export function GalleryPage() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {folders.map((folder) => (
-              <div 
+              <Link 
+                to={`/admin/gallery/album/${slugify(folder.category)}`}
                 key={folder.category} 
-                onClick={() => setSelectedFolder(folder.category)}
-                className="bg-white border border-[#1B4332]/10 shadow-sm hover:shadow-lg transition-all rounded-[32px] overflow-hidden group cursor-pointer relative"
+                className="bg-white rounded-2xl shadow-sm border border-[#1B4332]/10 overflow-hidden flex flex-col hover:shadow-md transition-all cursor-pointer group"
               >
-                <div className="aspect-square bg-slate-100 relative overflow-hidden">
+                <div className="relative w-full h-48 bg-slate-100 overflow-hidden">
                   {folder.cover ? (
                     <img 
                       src={folder.cover} 
@@ -413,32 +421,39 @@ export function GalleryPage() {
                       <ImageIcon className="w-12 h-12" />
                     </div>
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#1B4332]/60 via-transparent to-transparent opacity-80" />
-                  
-                  <div className="absolute top-4 left-4 flex flex-col gap-1">
-                    <div className="bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-full text-[11px] font-bold text-[#1B4332] shadow-sm uppercase tracking-wider">
-                      {folder.category}
+                  {folder.category.startsWith('Event:') && (
+                    <div className="absolute top-3 right-3 bg-adventure-orange text-white text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider">
+                      Event Linked
                     </div>
-                  </div>
-
-                  <div className="absolute bottom-4 left-4 right-4 text-white">
-                    <div className="text-sm font-semibold opacity-90">{folder.count} {folder.count === 1 ? 'Photo' : 'Photos'}</div>
-                  </div>
+                  )}
                 </div>
-              </div>
+                
+                <div className="p-5 flex-1 flex flex-col">
+                  <h3 className="text-xl font-bold text-[#1B4332] mb-1 group-hover:text-adventure-orange transition-colors">
+                    {folder.category.replace('Event: ', '').replace('Blog: ', '')}
+                  </h3>
+                  <p className="text-sm text-slate-600 font-medium mt-auto flex items-center gap-1.5">
+                    <ImageIcon className="w-4 h-4 text-slate-400" />
+                    {folder.count} {folder.count === 1 ? 'Photo' : 'Photos'}
+                  </p>
+                </div>
+              </Link>
             ))}
           </div>
         )
       )}
 
       {/* Upload Modal */}
-      {modalOpen && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-2 xs:p-3 sm:p-4 backdrop-blur-sm overflow-y-auto">
+      {modalOpen && createPortal(
+        <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-2 xs:p-3 sm:p-4 backdrop-blur-sm overflow-y-auto">
           <div className="bg-white border border-[#1B4332]/10 rounded-xl shadow-2xl max-w-lg w-full max-h-[92vh] flex flex-col my-auto">
             <div className="flex items-center justify-between p-4 border-b border-[#1B4332]/10 shrink-0">
-              <h3 className="text-base sm:text-lg font-bold text-[#1B4332] font-garamond">Add Photos to Gallery</h3>
+              <h3 className="text-base sm:text-lg font-bold text-[#1B4332] font-garamond">Create An Album</h3>
               <button 
-                onClick={() => setModalOpen(false)}
+                onClick={() => {
+                  uploadedFiles.forEach(f => URL.revokeObjectURL(f.preview))
+                  setModalOpen(false)
+                }}
                 className="text-slate-400 hover:text-slate-600 transition-colors"
               >
                 <X className="w-5 h-5" />
@@ -573,14 +588,17 @@ export function GalleryPage() {
                     />
                   </label>
 
-                  {uploadedUrls.length > 0 && (
+                  {uploadedFiles.length > 0 && (
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-2 shrink-0">
-                      {uploadedUrls.map((url, idx) => (
+                      {uploadedFiles.map((item, idx) => (
                         <div key={idx} className="relative group w-full aspect-square rounded-xl overflow-hidden border border-[#1B4332]/10">
-                          <img src={url} alt={`Preview ${idx}`} className="w-full h-full object-cover" />
+                          <img src={item.preview} alt={`Preview ${idx}`} className="w-full h-full object-cover" />
                           <button 
                             type="button"
-                            onClick={() => setUploadedUrls(prev => prev.filter((_, i) => i !== idx))}
+                            onClick={() => {
+                              URL.revokeObjectURL(item.preview)
+                              setUploadedFiles(prev => prev.filter((_, i) => i !== idx))
+                            }}
                             className="absolute top-1.5 right-1.5 bg-red-600 hover:bg-red-700 text-white rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
                           >
                             <X className="w-3.5 h-3.5" />
@@ -593,7 +611,7 @@ export function GalleryPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">Shared Caption (Optional)</label>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">Shared Caption / SEO Title *</label>
                 <textarea
                   value={caption}
                   onChange={(e) => setCaption(e.target.value)}
@@ -605,28 +623,32 @@ export function GalleryPage() {
               <div className="flex justify-end gap-3 pt-4 border-t border-[#1B4332]/10 shrink-0">
                 <button
                   type="button"
-                  onClick={() => setModalOpen(false)}
+                  onClick={() => {
+                    uploadedFiles.forEach(f => URL.revokeObjectURL(f.preview))
+                    setModalOpen(false)
+                  }}
                   className="px-4 py-2 border border-[#1B4332]/20 hover:bg-[#1B4332]/5 text-[#1B4332] rounded-xl text-xs sm:text-sm font-semibold transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={saving || uploading || uploadedUrls.length === 0}
+                  disabled={saving || uploadedFiles.length === 0}
                   className="flex items-center gap-1.5 px-5 py-2 bg-[#FF6B35] hover:bg-[#E0531D] disabled:opacity-50 text-white rounded-xl text-xs sm:text-sm font-bold transition-colors shadow-sm"
                 >
                   {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Save {uploadedUrls.length > 0 ? uploadedUrls.length : ''} Photos
+                  Save {uploadedFiles.length > 0 ? uploadedFiles.length : ''} Photos
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
       
       {/* Bulk Upload Modal */}
-      {bulkModalOpen && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm overflow-y-auto">
+      {bulkModalOpen && createPortal(
+        <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm overflow-y-auto">
           <div className="bg-white border border-[#1B4332]/10 rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col my-auto text-left">
             <div className="flex items-center justify-between p-4 border-b border-[#1B4332]/10 shrink-0">
               <div className="flex items-center gap-2">
@@ -651,7 +673,7 @@ export function GalleryPage() {
                   <textarea
                     value={jsonInput}
                     onChange={(e) => setJsonInput(e.target.value)}
-                    placeholder={`[\n  {\n    "category": "Trekking",\n    "caption": "Reaching the summit of Saka Haphong at sunrise"\n  },\n  {\n    "category": "Camping",\n    "caption": "Cozy bonfire night under the starry sky of Remakri"\n  }\n]`}
+                    placeholder={`[\n  {\n    "category": "Event: Summit 2026",\n    "caption": "Reaching the summit",\n    "linked_event_id": "12345"\n  },\n  {\n    "category": "Camping",\n    "image_url": "https://example.com/photo.jpg"\n  }\n]`}
                     className="w-full bg-[#f8fcf8] border border-[#1B4332]/15 text-slate-800 rounded-xl p-3 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-[#FF6B35] h-64 resize-none"
                   />
                   {parseError && (
@@ -746,7 +768,8 @@ export function GalleryPage() {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

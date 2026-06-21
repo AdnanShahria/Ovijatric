@@ -22,7 +22,7 @@ type ValidTable = typeof VALID_TABLES[number]
 /** Columns allowed for each table (prevents schema probing) */
 const TABLE_COLUMNS: Record<ValidTable, string[]> = {
   events: ['id', 'title', 'description', 'title_bn', 'description_bn', 'date', 'location', 'fee', 'total_spots', 'image_url', 'hover_image_url', 'additional_images', 'tags', 'sponsors', 'is_registration_open', 'created_at'],
-  gallery: ['id', 'image_url', 'category', 'caption', 'user_id', 'status', 'uploaded_at'],
+  gallery: ['id', 'image_url', 'category', 'caption', 'user_id', 'status', 'linked_event_id', 'linked_blog_post_id', 'linked_map_pin_id', 'uploaded_at'],
   team: ['id', 'name', 'role', 'image_url', 'facebook_url', 'linkedin_url', 'order_index'],
   blog_posts: ['id', 'title', 'content', 'author_id', 'image_url', 'hover_image_url', 'additional_images', 'published_at'],
   settings: ['key', 'value'],
@@ -251,10 +251,12 @@ export async function handleDynamicRoute(url: URL, request: Request, dbClient: a
       }
 
       if (dbClient) {
+        console.log(`🗄️ [Backend DB] INSERTing into ${table} with keys: ${keys.join(', ')}`);
         await dbClient.execute({
           sql: `INSERT INTO ${table} (${keys.join(', ')}) VALUES (${keys.map(() => '?').join(', ')})`,
           args: keys.map(k => body[k])
         })
+        console.log(`✅ [Backend DB] Successfully INSERTed into ${table}`);
       }
       return jsonResponse({ success: true, data: body }, cors)
     }

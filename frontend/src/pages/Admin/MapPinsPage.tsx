@@ -205,8 +205,18 @@ export function MapPinsPage() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="w-8 h-8 text-[#FF6B35] animate-spin" />
+        <div className="space-y-4 animate-pulse">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="bg-white border border-[#1B4332]/10 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4 w-full">
+                <div className="w-12 h-12 bg-slate-200 rounded-xl shrink-0"></div>
+                <div className="w-full space-y-2">
+                  <div className="h-5 bg-slate-200 rounded w-1/3"></div>
+                  <div className="h-3 bg-slate-200 rounded w-1/4"></div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       ) : pins.length === 0 ? (
         <div className="bg-white rounded-xl border border-[#1B4332]/10 shadow-sm p-6 sm:p-8 text-center">

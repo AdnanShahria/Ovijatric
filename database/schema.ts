@@ -47,6 +47,9 @@ export const gallery = sqliteTable('gallery', {
   caption: text('caption'),
   userId: text('user_id').references(() => users.id),
   status: text('status').default('approved').notNull(),
+  linkedEventId: text('linked_event_id'),
+  linkedBlogPostId: text('linked_blog_post_id'),
+  linkedMapPinId: text('linked_map_pin_id'),
   uploadedAt: integer('uploaded_at', { mode: 'timestamp' }).notNull(),
 });
 

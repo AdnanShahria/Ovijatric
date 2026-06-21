@@ -242,8 +242,19 @@ export function BannersPage() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="w-8 h-8 text-[#FF6B35] animate-spin" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mt-2 animate-pulse">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="bg-white border border-[#1B4332]/10 rounded-2xl overflow-hidden shadow-sm flex flex-col">
+              <div className="aspect-[16/9] w-full bg-slate-200"></div>
+              <div className="p-3.5 flex-grow flex flex-col justify-between gap-2">
+                <div className="h-4 bg-slate-200 rounded w-2/3"></div>
+                <div className="h-3 bg-slate-200 rounded w-1/3 mt-2"></div>
+                <div className="border-t border-[#1B4332]/5 pt-2 mt-2">
+                  <div className="h-3 bg-slate-200 rounded w-1/4"></div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       ) : currentTabBanners.length === 0 ? (
         <div className="bg-white rounded-2xl border border-[#1B4332]/10 p-8 text-center mt-2 text-[#1B4332]">

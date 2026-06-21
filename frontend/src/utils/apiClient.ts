@@ -121,8 +121,10 @@ export async function dynamicGet<T = any>(table: string, options: DynamicQueryOp
 }
 
 export async function dynamicInsert<T = any>(table: string, data: Partial<T>): Promise<T> {
+  console.log(`💾 [Frontend DB Insert] Inserting into ${table}...`, data)
   const res = await apiPost<T>(`/api/dynamic/${table}`, data)
   if (res.error) throw new Error(res.error)
+  console.log(`✅ [Frontend DB Insert] Success for ${table}!`)
   return res.data
 }
 
@@ -184,6 +186,8 @@ export async function uploadImage(file: File, aspectRatio?: number, maxSizeMB: n
   try {
     let processedFile = file;
 
+    const originalSize = file.size;
+
     if (aspectRatio) {
       processedFile = await cropToAspectRatio(processedFile, aspectRatio);
     }
@@ -194,6 +198,11 @@ export async function uploadImage(file: File, aspectRatio?: number, maxSizeMB: n
       useWebWorker: true
     };
     processedFile = await imageCompression(processedFile, options);
+
+    const compressedSize = processedFile.size;
+    const reduction = ((originalSize - compressedSize) / originalSize * 100).toFixed(2);
+    console.log(`🗜️ [Compression] Image compressed from ${(originalSize/1024).toFixed(2)}KB to ${(compressedSize/1024).toFixed(2)}KB (${reduction}% reduction)`);
+    console.log(`🚀 [Upload] Uploading to backend...`);
 
     const formData = new FormData()
     formData.append('image', processedFile)
@@ -209,6 +218,7 @@ export async function uploadImage(file: File, aspectRatio?: number, maxSizeMB: n
 
     const json = await res.json()
     if (res.ok && json.success) {
+      console.log(`✅ [Upload] Successfully uploaded image! URL: ${json.url}`);
       return { success: true, url: json.url }
     }
     return { success: false, error: json.error || 'Failed to upload image' }
@@ -229,6 +239,7 @@ export async function uploadImageWithProgress(
   try {
     if (onProgress) onProgress('compressing', 0);
     let processedFile = file;
+    const originalSize = file.size;
 
     if (aspectRatio) {
       processedFile = await cropToAspectRatio(processedFile, aspectRatio);
@@ -246,6 +257,11 @@ export async function uploadImageWithProgress(
       }
     };
     processedFile = await imageCompression(processedFile, options);
+
+    const compressedSize = processedFile.size;
+    const reduction = ((originalSize - compressedSize) / originalSize * 100).toFixed(2);
+    console.log(`🗜️ [Compression w/ Progress] Image compressed from ${(originalSize/1024).toFixed(2)}KB to ${(compressedSize/1024).toFixed(2)}KB (${reduction}% reduction)`);
+    console.log(`🚀 [Upload w/ Progress] Uploading to backend...`);
 
     if (onProgress) onProgress('uploading', 0);
 

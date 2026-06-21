@@ -4,6 +4,7 @@ import { HomePage } from '../pages/Home/HomePage'
 import { EventDetailsPage } from '../pages/Events/EventDetailsPage'
 import { BlogDetailsPage } from '../pages/Blog/BlogDetailsPage'
 import { GalleryDetailsPage } from '../pages/Home/GalleryDetailsPage'
+import { GalleryAlbumPage } from '../pages/Home/GalleryAlbumPage'
 import { Chatbot } from '../components/shared/Chatbot'
 import { Navbar } from '../components/shared/Navbar'
 import { Footer } from '../components/shared/Footer'
@@ -19,6 +20,7 @@ function IndexApp() {
               <Route path="/" element={<HomePage />} />
               <Route path="/events/:id" element={<EventDetailsPage />} />
               <Route path="/blog/:id" element={<BlogDetailsPage />} />
+              <Route path="/gallery/album/:id" element={<GalleryAlbumPage />} />
               <Route path="/gallery/:id" element={<GalleryDetailsPage />} />
               <Route path="*" element={<div className="p-8 text-center mt-20 text-2xl font-bold">404 - Adventure Not Found</div>} />
             </Routes>

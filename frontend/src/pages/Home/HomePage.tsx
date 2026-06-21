@@ -61,11 +61,23 @@ export const HomePage = () => {
         }
 
         if (gals && gals.length > 0) {
-          setGallery(gals.map(g => ({
-            id: g.id,
-            image: g.image_url,
-            alt: g.caption || 'Gallery Image'
-          })))
+          const grouped = gals.reduce((acc: any, item: any) => {
+            if (!acc[item.category]) acc[item.category] = []
+            acc[item.category].push(item)
+            return acc
+          }, {})
+          
+          const albums = Object.entries(grouped).map(([cat, photos]: [string, any]) => {
+            const cover = photos.find((p: any) => p.image_url)?.image_url || photos[0]?.image_url
+            return {
+              id: slugify(cat),
+              title: cat,
+              cover: cover,
+              count: photos.length,
+              linked_event_id: photos[0].linked_event_id
+            }
+          })
+          setGallery(albums)
         } else {
           setGallery([])
         }
@@ -441,12 +453,24 @@ export const HomePage = () => {
             <p className="text-slate-600 text-lg">Glimpses of our memories.</p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {gallery.slice(0, visibleGallery).map((img) => (
-              <Link to={`/gallery/${slugify(img.alt || 'photo')}-${img.id}`} key={img.id} className="relative aspect-square overflow-hidden rounded-2xl group block">
-                <img src={img.image} alt={img.alt} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <span className="text-white font-semibold">View</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {gallery.slice(0, visibleGallery).map((album) => (
+              <Link to={`/gallery/album/${album.id}`} key={album.id} className="block bg-white rounded-2xl overflow-hidden shadow-sm border border-[#1B4332]/10 group hover:-translate-y-2 hover:shadow-xl transition-all duration-300 flex flex-col">
+                <div className="relative w-full h-48 overflow-hidden bg-slate-100">
+                  <img src={album.cover} alt={album.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                  {album.title.startsWith('Event:') && (
+                    <div className="absolute top-4 right-4 bg-adventure-orange text-white text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider">
+                      Event Linked
+                    </div>
+                  )}
+                </div>
+                <div className="p-5 flex flex-col flex-1">
+                  <h3 className="text-xl font-bold text-[#1B4332] mb-1 group-hover:text-adventure-orange transition-colors">
+                    {album.title.replace('Event: ', '').replace('Blog: ', '')}
+                  </h3>
+                  <div className="flex items-center text-sm text-slate-600 font-medium mt-auto">
+                    <span>{album.count} {album.count === 1 ? 'Photo' : 'Photos'}</span>
+                  </div>
                 </div>
               </Link>
             ))}
