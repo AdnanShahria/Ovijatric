@@ -1,0 +1,26 @@
+[
+  {
+    "id": "a1",
+    "title": "Best Community Initiative Award",
+    "description": "Awarded by the National Tech Council for our outstanding contributions to tech education in rural areas.",
+    "date": "2025-11-20T00:00:00Z",
+    "imageUrl": "/test_content/images/achievements/award1.png",
+    "category": "Social Impact"
+  },
+  {
+    "id": "a2",
+    "title": "1 Million Active Users Milestone",
+    "description": "Our platform officially crossed the 1 million active users mark this year.",
+    "date": "2026-02-15T00:00:00Z",
+    "imageUrl": "/test_content/images/achievements/milestone.png",
+    "category": "Growth"
+  },
+  {
+    "id": "a3",
+    "title": "Top Open Source Project 2025",
+    "description": "Recognized as one of the top 10 most impactful open source projects of the year.",
+    "date": "2025-12-05T00:00:00Z",
+    "imageUrl": "/test_content/images/achievements/award2.png",
+    "category": "Technology"
+  }
+]

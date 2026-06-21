@@ -1,0 +1,29 @@
+[
+  {
+    "id": "b1",
+    "title": "The Future of Artificial Intelligence",
+    "author": "Dr. Sarah Khan",
+    "content": "Artificial Intelligence is rapidly evolving. In this article, we explore the potential impacts of AI on various industries over the next decade. From healthcare to finance, AI promises to revolutionize the way we work and live...",
+    "publishDate": "2026-06-10T08:00:00Z",
+    "tags": ["AI", "Technology", "Future"],
+    "imageUrl": "/test_content/images/blogs/ai_future.jpg"
+  },
+  {
+    "id": "b2",
+    "title": "10 Best Practices for Modern React Applications",
+    "author": "John Doe",
+    "content": "Building scalable React applications requires a solid understanding of modern best practices. In this guide, we cover state management, custom hooks, performance optimization, and architectural patterns...",
+    "publishDate": "2026-05-28T09:30:00Z",
+    "tags": ["React", "Web Development", "Tutorial"],
+    "imageUrl": "/test_content/images/blogs/react_best_practices.jpg"
+  },
+  {
+    "id": "b3",
+    "title": "How to Build a Strong Open Source Community",
+    "author": "Aisha Rahman",
+    "content": "Creating a thriving open source community is more than just writing good code. It involves clear communication, welcoming documentation, and creating an inclusive environment for all contributors...",
+    "publishDate": "2026-04-15T11:15:00Z",
+    "tags": ["Open Source", "Community", "Leadership"],
+    "imageUrl": "/test_content/images/blogs/community.jpg"
+  }
+]

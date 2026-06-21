@@ -1,0 +1,30 @@
+[
+  {
+    "id": "g1",
+    "title": "Tech Conference Opening Ceremony",
+    "imageUrl": "/test_content/images/gallery/opening.jpg",
+    "category": "Events",
+    "date": "2026-01-15T10:00:00Z"
+  },
+  {
+    "id": "g2",
+    "title": "Hackathon Winners Presentation",
+    "imageUrl": "/test_content/images/gallery/winners.jpg",
+    "category": "Competitions",
+    "date": "2026-05-22T18:00:00Z"
+  },
+  {
+    "id": "g3",
+    "title": "Team Retreat 2025",
+    "imageUrl": "/test_content/images/gallery/retreat.jpg",
+    "category": "Team Building",
+    "date": "2025-12-10T09:00:00Z"
+  },
+  {
+    "id": "g4",
+    "title": "Workshop Session on AI",
+    "imageUrl": "/test_content/images/gallery/ai_workshop.jpg",
+    "category": "Workshops",
+    "date": "2026-03-05T14:00:00Z"
+  }
+]

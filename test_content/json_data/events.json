@@ -1,0 +1,29 @@
+[
+  {
+    "id": "e1",
+    "title": "Annual Tech Conference 2026",
+    "description": "Join us for our biggest annual tech conference featuring industry leaders and workshops.",
+    "date": "2026-08-15T09:00:00Z",
+    "location": "Dhaka International Convention Center",
+    "imageUrl": "/test_content/images/events/tech_conf.jpg",
+    "status": "upcoming"
+  },
+  {
+    "id": "e2",
+    "title": "Community Workshop: Web Dev Basics",
+    "description": "A beginner-friendly workshop focusing on modern web development practices.",
+    "date": "2026-07-10T14:00:00Z",
+    "location": "Online / Zoom",
+    "imageUrl": "/test_content/images/events/web_dev_workshop.jpg",
+    "status": "upcoming"
+  },
+  {
+    "id": "e3",
+    "title": "Hackathon: Code for Good",
+    "description": "A 48-hour hackathon to build solutions for local communities.",
+    "date": "2026-05-20T10:00:00Z",
+    "location": "University Campus Main Hall",
+    "imageUrl": "/test_content/images/events/hackathon.jpg",
+    "status": "completed"
+  }
+]
