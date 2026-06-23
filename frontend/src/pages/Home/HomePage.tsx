@@ -52,6 +52,7 @@ export const HomePage = () => {
             fee: e.fee,
             totalSpots: e.total_spots,
             image: e.image_url || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop',
+            hoverImage: e.hover_image_url || null,
             category: 'Expedition',
             tags: tagsArray,
             spotsLeft: e.total_spots || 'Limited'
@@ -88,7 +89,9 @@ export const HomePage = () => {
             title: b.title,
             date: new Date(Number(b.published_at)).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }),
             readTime: `${Math.max(1, Math.floor((b.content || '').length / 500))} min read`,
-            content: b.content
+            content: b.content,
+            image: b.image_url || null,
+            hoverImage: b.hover_image_url || null
           })))
         } else {
           setBlogs([])
@@ -389,9 +392,12 @@ export const HomePage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-8">
             {events.slice(0, visibleEvents).map((event) => (
               <Link key={event.id} to={`/events/${slugify(event.title)}`} className="block bg-white rounded-2xl overflow-hidden shadow-lg border border-[#1B4332]/10 group hover:-translate-y-2 hover:shadow-2xl transition-all duration-300 flex flex-col">
-                <div className="relative w-full overflow-hidden shrink-0 bg-slate-100 flex items-center justify-center" style={{ aspectRatio: '16/9' }}>
-                  <img src={event.image} alt={event.title} className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-700" />
-                  <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-adventure-orange">
+                <div className="relative w-full overflow-hidden shrink-0 bg-slate-100 flex items-center justify-center group/image" style={{ aspectRatio: '16/9' }}>
+                  <img src={event.image} alt={event.title} className={`w-full h-full object-contain ${event.hoverImage ? 'group-hover/image:opacity-0' : 'group-hover:scale-110'} transition-all duration-700`} />
+                  {event.hoverImage && (
+                    <img src={event.hoverImage} alt={`${event.title} hover`} className="absolute inset-0 w-full h-full object-contain opacity-0 group-hover/image:opacity-100 group-hover/image:scale-110 transition-all duration-700" />
+                  )}
+                  <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-adventure-orange z-10">
                     {event.category}
                   </div>
                   {event.tags && event.tags.length > 0 && (
@@ -499,16 +505,26 @@ export const HomePage = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
             {blogs.slice(0, visibleBlogs).map((post) => (
-              <Link key={post.id} to={`/blog/${slugify(post.title)}`} className="group block bg-white p-4 sm:p-8 rounded-2xl sm:rounded-3xl shadow-md hover:shadow-xl hover:-translate-y-1 border border-[#1B4332]/5 transition-all duration-300">
-                <div className="flex items-center gap-2 sm:gap-4 mb-2 sm:mb-4 text-xs sm:text-sm text-slate-500 font-medium">
-                  <span className="bg-adventure-orange/10 text-adventure-orange px-2 py-0.5 sm:px-3 sm:py-1 rounded-full">{post.date}</span>
-                  <span className="hidden sm:inline">•</span>
-                  <span>{post.readTime}</span>
+              <Link key={post.id} to={`/blog/${slugify(post.title)}`} className="group block bg-white rounded-2xl sm:rounded-3xl overflow-hidden shadow-md hover:shadow-xl hover:-translate-y-1 border border-[#1B4332]/5 transition-all duration-300 flex flex-col">
+                {post.image && (
+                  <div className="relative w-full h-48 sm:h-56 overflow-hidden bg-slate-100 group/image">
+                    <img src={post.image} alt={post.title} className={`w-full h-full object-cover ${post.hoverImage ? 'group-hover/image:opacity-0' : 'group-hover:scale-105'} transition-all duration-700`} />
+                    {post.hoverImage && (
+                      <img src={post.hoverImage} alt={`${post.title} hover`} className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover/image:opacity-100 group-hover/image:scale-105 transition-all duration-700" />
+                    )}
+                  </div>
+                )}
+                <div className={`p-4 sm:p-8 flex flex-col flex-1 ${!post.image ? 'pt-6 sm:pt-10' : ''}`}>
+                  <div className="flex items-center gap-2 sm:gap-4 mb-2 sm:mb-4 text-xs sm:text-sm text-slate-500 font-medium">
+                    <span className="bg-adventure-orange/10 text-adventure-orange px-2 py-0.5 sm:px-3 sm:py-1 rounded-full">{post.date}</span>
+                    <span className="hidden sm:inline">•</span>
+                    <span>{post.readTime}</span>
+                  </div>
+                  <h3 className="text-lg sm:text-2xl font-bold text-[#1B4332] group-hover:text-adventure-orange transition-colors line-clamp-2">{post.title}</h3>
+                  <p className="mt-2 sm:mt-4 text-sm sm:text-base text-slate-600 line-clamp-2">
+                    {post.content ? post.content.replace(/<[^>]+>/g, '').substring(0, 150) + '...' : 'Adventure brings unexpected challenges, but with the right mindset and preparation, you can conquer any trail. Read on to discover the incredible experiences our members faced on this journey.'}
+                  </p>
                 </div>
-                <h3 className="text-lg sm:text-2xl font-bold text-[#1B4332] group-hover:text-adventure-orange transition-colors line-clamp-2">{post.title}</h3>
-                <p className="mt-2 sm:mt-4 text-sm sm:text-base text-slate-600 line-clamp-2">
-                  {post.content ? post.content.substring(0, 150) + '...' : 'Adventure brings unexpected challenges, but with the right mindset and preparation, you can conquer any trail. Read on to discover the incredible experiences our members faced on this journey.'}
-                </p>
               </Link>
             ))}
           </div>

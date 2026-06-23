@@ -313,12 +313,12 @@ function startService(key) {
   const svc = services[key];
   const isVite = key === 'vite';
 
-  const cmd = isVite ? 'npm' : 'npx';
+  const baseCmd = isVite ? 'npm' : 'npx';
   const args = isVite
     ? ['run', 'dev', '--workspace=frontend']
     : ['wrangler', 'pages', 'dev', 'frontend/public', '--port', '8788', '--compatibility-flag=nodejs_compat'];
 
-  const child = spawn(cmd, args, {
+  const child = spawn(`${baseCmd} ${args.join(' ')}`, [], {
     cwd: path.resolve(__dirname, '..'),
     stdio: ['ignore', 'pipe', 'pipe'],
     shell: true,
@@ -346,8 +346,8 @@ function startService(key) {
 viteProcess = startService('vite');
 wranglerProcess = startService('wrangler');
 
-// Hide cursor at startup
-process.stdout.write('\x1b[?25l');
+// Hide cursor at startup and clear screen
+process.stdout.write('\x1b[?25l\x1b[2J\x1b[3J\x1b[H');
 
 // Initial render
 render();

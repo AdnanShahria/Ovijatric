@@ -29,7 +29,7 @@ export function GalleryPage() {
   const [events, setEvents] = useState<EventItem[]>([])
   const [blogs, setBlogs] = useState<BlogItem[]>([])
   const [loading, setLoading] = useState(true)
-  
+
   // Navigation State
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState('all') // 'all', 'pending', 'approved'
@@ -55,16 +55,16 @@ export function GalleryPage() {
     setToastMessage({ type, text });
     setTimeout(() => setToastMessage(null), 4000);
   }
-  
+
   // Add Photo Form State
-  const [uploadedFiles, setUploadedFiles] = useState<{file: File, preview: string}[]>([])
+  const [uploadedFiles, setUploadedFiles] = useState<{ file: File, preview: string }[]>([])
   const [categoryType, setCategoryType] = useState('Standard') // 'Standard', 'Event', 'Blog', 'Custom'
   const [category, setCategory] = useState('Trekking')
   const [customCategory, setCustomCategory] = useState('')
   const [selectedEventId, setSelectedEventId] = useState('')
   const [selectedBlogId, setSelectedBlogId] = useState('')
   const [caption, setCaption] = useState('')
-  
+
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
 
@@ -79,7 +79,7 @@ export function GalleryPage() {
       setItems(galleryData)
       setEvents(eventsData)
       setBlogs(blogsData)
-      
+
       // Select defaults for dropdowns if available
       if (eventsData.length > 0) setSelectedEventId(eventsData[0].id)
       if (blogsData.length > 0) setSelectedBlogId(blogsData[0].id)
@@ -261,7 +261,7 @@ export function GalleryPage() {
         }
         setBackgroundUpload({ total: filesToUpload.length, current: i + 1 })
       }
-      
+
       // Refetch actual data with real URLs
       await fetchData()
       // Cleanup local previews
@@ -338,8 +338,8 @@ export function GalleryPage() {
               <span>{backgroundUpload.current} of {backgroundUpload.total}</span>
             </div>
             <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-              <div 
-                className="bg-[#FF6B35] h-full transition-all duration-300" 
+              <div
+                className="bg-[#FF6B35] h-full transition-all duration-300"
                 style={{ width: `${(backgroundUpload.current / backgroundUpload.total) * 100}%` }}
               ></div>
             </div>
@@ -354,14 +354,14 @@ export function GalleryPage() {
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">Upload and categorize photos of club memories</p>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <button 
+          <button
             onClick={() => setBulkModalOpen(true)}
             className="flex items-center justify-center gap-1.5 border border-[#1B4332]/20 hover:bg-[#1B4332]/5 text-[#1B4332] px-3.5 py-1.5 rounded-xl text-sm font-semibold transition-colors flex-1 sm:flex-initial"
           >
             <Upload className="w-4 h-4" />
             Bulk Upload
           </button>
-          <button 
+          <button
             onClick={openAddModal}
             className="flex items-center justify-center gap-1.5 bg-[#FF6B35] hover:bg-[#E0531D] text-white px-3.5 py-1.5 rounded-xl text-sm font-semibold transition-colors flex-1 sm:flex-initial shadow-sm shadow-[#FF6B35]/10"
           >
@@ -393,7 +393,7 @@ export function GalleryPage() {
             <p className="text-xs sm:text-sm text-slate-500 max-w-xs mx-auto mb-4">
               You haven't uploaded any photos to the gallery yet.
             </p>
-            <button 
+            <button
               onClick={openAddModal}
               className="flex items-center gap-1.5 bg-[#FF6B35] hover:bg-[#E0531D] text-white px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-colors mx-auto"
             >
@@ -404,17 +404,17 @@ export function GalleryPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {folders.map((folder) => (
-              <Link 
+              <Link
                 to={`/admin/gallery/album/${slugify(folder.category)}`}
-                key={folder.category} 
+                key={folder.category}
                 className="bg-white rounded-2xl shadow-sm border border-[#1B4332]/10 overflow-hidden flex flex-col hover:shadow-md transition-all cursor-pointer group"
               >
                 <div className="relative w-full h-48 bg-slate-100 overflow-hidden">
                   {folder.cover ? (
-                    <img 
-                      src={folder.cover} 
-                      alt={folder.category} 
-                      className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500" 
+                    <img
+                      src={folder.cover}
+                      alt={folder.category}
+                      className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-slate-300">
@@ -427,7 +427,7 @@ export function GalleryPage() {
                     </div>
                   )}
                 </div>
-                
+
                 <div className="p-5 flex-1 flex flex-col">
                   <h3 className="text-xl font-bold text-[#1B4332] mb-1 group-hover:text-adventure-orange transition-colors">
                     {folder.category.replace('Event: ', '').replace('Blog: ', '')}
@@ -449,7 +449,7 @@ export function GalleryPage() {
           <div className="bg-white border border-[#1B4332]/10 rounded-xl shadow-2xl max-w-lg w-full max-h-[92vh] flex flex-col my-auto">
             <div className="flex items-center justify-between p-4 border-b border-[#1B4332]/10 shrink-0">
               <h3 className="text-base sm:text-lg font-bold text-[#1B4332] font-garamond">Create An Album</h3>
-              <button 
+              <button
                 onClick={() => {
                   uploadedFiles.forEach(f => URL.revokeObjectURL(f.preview))
                   setModalOpen(false)
@@ -461,7 +461,7 @@ export function GalleryPage() {
             </div>
 
             <form onSubmit={handleSave} className="p-4 space-y-4 overflow-y-auto flex-grow scrollbar-thin">
-              
+
               {/* Category Linking Section */}
               <div className="p-3 bg-[#f8fcf8] border border-[#1B4332]/15 rounded-xl space-y-3">
                 <div>
@@ -472,11 +472,10 @@ export function GalleryPage() {
                         key={type}
                         type="button"
                         onClick={() => setCategoryType(type)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border ${
-                          categoryType === type 
-                            ? 'bg-[#1B4332] text-white border-[#1B4332]' 
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border ${categoryType === type
+                            ? 'bg-[#1B4332] text-white border-[#1B4332]'
                             : 'bg-white text-slate-600 border-slate-200 hover:border-[#1B4332]/30'
-                        }`}
+                          }`}
                       >
                         {type}
                       </button>
@@ -553,7 +552,7 @@ export function GalleryPage() {
                     )}
                   </div>
                 )}
-                
+
                 <div className="pt-2">
                   <div className="text-[10px] text-slate-500 flex items-center gap-1">
                     <Check className="w-3 h-3 text-emerald-500" />
@@ -578,13 +577,13 @@ export function GalleryPage() {
                       </span>
                       <span className="block text-xs text-slate-500 mt-0.5">You can select multiple files at once</span>
                     </div>
-                    <input 
-                      type="file" 
+                    <input
+                      type="file"
                       accept="image/*"
                       multiple
                       onChange={handleMultipleImageUpload}
                       disabled={uploading}
-                      className="hidden" 
+                      className="hidden"
                     />
                   </label>
 
@@ -593,7 +592,7 @@ export function GalleryPage() {
                       {uploadedFiles.map((item, idx) => (
                         <div key={idx} className="relative group w-full aspect-square rounded-xl overflow-hidden border border-[#1B4332]/10">
                           <img src={item.preview} alt={`Preview ${idx}`} className="w-full h-full object-cover" />
-                          <button 
+                          <button
                             type="button"
                             onClick={() => {
                               URL.revokeObjectURL(item.preview)
@@ -645,7 +644,7 @@ export function GalleryPage() {
         </div>,
         document.body
       )}
-      
+
       {/* Bulk Upload Modal */}
       {bulkModalOpen && createPortal(
         <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm overflow-y-auto">
@@ -655,7 +654,7 @@ export function GalleryPage() {
                 <Upload className="w-5 h-5 text-[#FF6B35]" />
                 <h3 className="text-base sm:text-lg font-bold text-[#1B4332] font-garamond">Bulk Import Gallery</h3>
               </div>
-              <button 
+              <button
                 onClick={handleCloseBulkModal}
                 disabled={isUploading}
                 className="text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"

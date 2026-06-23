@@ -549,7 +549,16 @@ export function MapPinsPage() {
                       <label className="block text-xs font-semibold text-slate-500 mb-1">Linked Event *</label>
                       <select
                         value={linkedEventId}
-                        onChange={(e) => setLinkedEventId(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setLinkedEventId(val);
+                          const evt = eventsList.find(x => x.id === val);
+                          if (evt) {
+                            if (!title) setTitle(evt.title || '');
+                            if (!details) setDetails(evt.description ? evt.description.replace(/<[^>]+>/g, '').substring(0, 150) + '...' : '');
+                            if (!imageUrl) setImageUrl(evt.image_url || '');
+                          }
+                        }}
                         className="w-full bg-[#f8fcf8] text-slate-800 border border-[#1B4332]/15 rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#FF6B35] focus:border-[#FF6B35] text-xs sm:text-sm"
                         required
                       >
@@ -567,14 +576,23 @@ export function MapPinsPage() {
                       <label className="block text-xs font-semibold text-slate-500 mb-1">Linked Gallery Item *</label>
                       <select
                         value={linkedGalleryId}
-                        onChange={(e) => setLinkedGalleryId(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setLinkedGalleryId(val);
+                          const gal = galleryList.find(x => x.id === val);
+                          if (gal) {
+                            if (!title) setTitle(gal.category || '');
+                            if (!details) setDetails(gal.description || gal.caption || '');
+                            if (!imageUrl) setImageUrl(gal.image_url || '');
+                          }
+                        }}
                         className="w-full bg-[#f8fcf8] text-slate-800 border border-[#1B4332]/15 rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#FF6B35] focus:border-[#FF6B35] text-xs sm:text-sm"
                         required
                       >
                         <option value="">-- Select Gallery Item --</option>
                         {galleryList.map((gal) => (
                           <option key={gal.id} value={gal.id}>
-                            {gal.caption || 'No Caption'} ({gal.category})
+                            {gal.description || gal.caption || 'No Description'} ({gal.category})
                           </option>
                         ))}
                       </select>
@@ -585,7 +603,16 @@ export function MapPinsPage() {
                       <label className="block text-xs font-semibold text-slate-500 mb-1">Linked Blog Post *</label>
                       <select
                         value={linkedPlaceSlug}
-                        onChange={(e) => setLinkedPlaceSlug(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setLinkedPlaceSlug(val);
+                          const blog = blogList.find(x => x.id === val);
+                          if (blog) {
+                            if (!title) setTitle(blog.title || '');
+                            if (!details) setDetails(blog.content ? blog.content.replace(/<[^>]+>/g, '').substring(0, 150) + '...' : '');
+                            if (!imageUrl) setImageUrl(blog.image_url || '');
+                          }
+                        }}
                         className="w-full bg-[#f8fcf8] text-slate-800 border border-[#1B4332]/15 rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#FF6B35] focus:border-[#FF6B35] text-xs sm:text-sm"
                         required
                       >

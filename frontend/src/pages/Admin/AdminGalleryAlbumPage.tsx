@@ -1,8 +1,9 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { dynamicGet, dynamicUpdate, dynamicDelete } from '../../utils/apiClient';
 import { slugify } from '../../utils/slugify';
-import { Loader2, ArrowLeft, Calendar, MapPin, ExternalLink, Check, Trash2, Image as ImageIcon, CheckCircle2, X } from 'lucide-react';
+import { Loader2, ArrowLeft, Calendar, MapPin, ExternalLink, Check, Trash2, Image as ImageIcon, CheckCircle2, X, Settings, Edit2 } from 'lucide-react';
 
 interface GalleryItem {
   id: string;
@@ -12,6 +13,7 @@ interface GalleryItem {
   status: string;
   uploaded_at: string | number;
   linked_event_id?: string;
+  linked_blog_post_id?: string;
 }
 
 interface EventItem {
@@ -19,6 +21,11 @@ interface EventItem {
   title: string;
   date: string | number;
   location: string;
+}
+
+interface BlogItem {
+  id: string;
+  title: string;
 }
 
 export const AdminGalleryAlbumPage = () => {
@@ -30,6 +37,23 @@ export const AdminGalleryAlbumPage = () => {
   const [loading, setLoading] = useState(true);
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
+  // Global lists for edit linking
+  const [events, setEvents] = useState<EventItem[]>([]);
+  const [blogs, setBlogs] = useState<BlogItem[]>([]);
+
+  // Edit Album State
+  const [editAlbumModalOpen, setEditAlbumModalOpen] = useState(false);
+  const [newAlbumName, setNewAlbumName] = useState('');
+  const [linkType, setLinkType] = useState('None'); // 'None', 'Event', 'Blog'
+  const [selectedEventId, setSelectedEventId] = useState('');
+  const [selectedBlogId, setSelectedBlogId] = useState('');
+  const [isSavingAlbum, setIsSavingAlbum] = useState(false);
+
+  // Edit Photo State
+  const [editingPhoto, setEditingPhoto] = useState<GalleryItem | null>(null);
+  const [editCaption, setEditCaption] = useState('');
+  const [isSavingPhoto, setIsSavingPhoto] = useState(false);
+
   const showToast = (text: string, type: 'success' | 'error' = 'success') => {
     setToastMessage({ type, text });
     setTimeout(() => setToastMessage(null), 4000);
@@ -39,23 +63,29 @@ export const AdminGalleryAlbumPage = () => {
     if (!id) return;
     try {
       setLoading(true);
-      const data = await dynamicGet<GalleryItem>('gallery', { order: 'uploaded_at', dir: 'desc' });
+      const [data, allEvents, allBlogs] = await Promise.all([
+        dynamicGet<GalleryItem>('gallery', { order: 'uploaded_at', dir: 'desc' }),
+        dynamicGet<EventItem>('events', { order: 'date', dir: 'desc' }),
+        dynamicGet<BlogItem>('blog_posts', { order: 'created_at', dir: 'desc' })
+      ]);
       
+      setEvents(allEvents);
+      setBlogs(allBlogs);
+
       const albumPhotos = data.filter(g => slugify(g.category) === id);
       setPhotos(albumPhotos);
       
       if (albumPhotos.length > 0) {
-        setAlbumName(albumPhotos[0].category.replace('Event: ', '').replace('Blog: ', ''));
+        const currentCat = albumPhotos[0].category;
+        setAlbumName(currentCat.replace('Event: ', '').replace('Blog: ', ''));
         
         const eventId = albumPhotos[0].linked_event_id;
         if (eventId) {
-          const eventData = await dynamicGet<EventItem>('events', { eq: { id: eventId } });
-          if (eventData.length > 0) {
-            setLinkedEvent(eventData[0]);
-          }
+          const ev = allEvents.find(e => e.id === eventId);
+          if (ev) setLinkedEvent(ev);
+        } else {
+          setLinkedEvent(null);
         }
-      } else {
-        // No photos found for this album, maybe it was deleted
       }
     } catch (err) {
       console.error('Failed to fetch gallery album:', err);
@@ -83,7 +113,12 @@ export const AdminGalleryAlbumPage = () => {
     try {
       await dynamicDelete('gallery', { id: photoId });
       showToast('Photo deleted successfully');
-      fetchData();
+      // Update local state without full refetch if we are deleting
+      const updatedPhotos = photos.filter(p => p.id !== photoId);
+      setPhotos(updatedPhotos);
+      if (updatedPhotos.length === 0) {
+        navigate('/admin/gallery'); // redirect if album is empty
+      }
     } catch (err) {
       showToast('Failed to delete photo', 'error');
     }
@@ -92,9 +127,7 @@ export const AdminGalleryAlbumPage = () => {
   const handleApproveAll = async () => {
     const pendingPhotos = photos.filter(p => p.status === 'pending');
     if (pendingPhotos.length === 0) return;
-    
     if (!confirm(`Are you sure you want to approve ${pendingPhotos.length} photos?`)) return;
-    
     try {
       for (const photo of pendingPhotos) {
         await dynamicUpdate('gallery', { id: photo.id, status: 'approved' });
@@ -104,6 +137,97 @@ export const AdminGalleryAlbumPage = () => {
     } catch (err) {
       showToast('Error occurred while approving photos', 'error');
       fetchData();
+    }
+  };
+
+  const openEditAlbumModal = () => {
+    if (photos.length === 0) return;
+    const cat = photos[0].category;
+    const evId = photos[0].linked_event_id;
+    const blgId = photos[0].linked_blog_post_id;
+    
+    setNewAlbumName(cat.replace('Event: ', '').replace('Blog: ', ''));
+    if (cat.startsWith('Event: ') || evId) {
+      setLinkType('Event');
+      setSelectedEventId(evId || (events.length > 0 ? events[0].id : ''));
+    } else if (cat.startsWith('Blog: ') || blgId) {
+      setLinkType('Blog');
+      setSelectedBlogId(blgId || (blogs.length > 0 ? blogs[0].id : ''));
+    } else {
+      setLinkType('None');
+    }
+    setEditAlbumModalOpen(true);
+  };
+
+  const handleSaveAlbum = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newAlbumName.trim()) {
+      showToast('Album name cannot be empty', 'error');
+      return;
+    }
+    
+    let finalCategory = newAlbumName.trim();
+    let finalEvId: string | null = null;
+    let finalBlgId: string | null = null;
+
+    if (linkType === 'Event') {
+      const ev = events.find(e => e.id === selectedEventId);
+      if (ev) {
+        finalCategory = `Event: ${ev.title}`;
+        finalEvId = selectedEventId;
+      }
+    } else if (linkType === 'Blog') {
+      const bl = blogs.find(b => b.id === selectedBlogId);
+      if (bl) {
+        finalCategory = `Blog: ${bl.title}`;
+        finalBlgId = selectedBlogId;
+      }
+    }
+
+    try {
+      setIsSavingAlbum(true);
+      for (const photo of photos) {
+        const payload: any = { id: photo.id, category: finalCategory };
+        // Pass null or ID
+        if (finalEvId !== null) payload.linked_event_id = finalEvId;
+        if (finalBlgId !== null) payload.linked_blog_post_id = finalBlgId;
+        await dynamicUpdate('gallery', payload);
+      }
+      showToast('Album settings updated successfully!');
+      setEditAlbumModalOpen(false);
+      
+      // Navigate to new slug if name changed
+      const newSlug = slugify(finalCategory);
+      if (newSlug !== id) {
+        navigate(`/admin/gallery/album/${newSlug}`);
+      } else {
+        fetchData();
+      }
+    } catch (err) {
+      showToast('Failed to update album', 'error');
+    } finally {
+      setIsSavingAlbum(false);
+    }
+  };
+
+  const openEditPhotoModal = (photo: GalleryItem) => {
+    setEditingPhoto(photo);
+    setEditCaption(photo.caption || '');
+  };
+
+  const handleSavePhoto = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPhoto) return;
+    try {
+      setIsSavingPhoto(true);
+      await dynamicUpdate('gallery', { id: editingPhoto.id, caption: editCaption });
+      setPhotos(prev => prev.map(p => p.id === editingPhoto.id ? { ...p, caption: editCaption } : p));
+      showToast('Photo updated successfully');
+      setEditingPhoto(null);
+    } catch (err) {
+      showToast('Failed to update photo', 'error');
+    } finally {
+      setIsSavingPhoto(false);
     }
   };
 
@@ -137,7 +261,7 @@ export const AdminGalleryAlbumPage = () => {
   return (
     <div className="space-y-6 sm:space-y-8 min-h-[calc(100vh-2rem)] relative">
       {toastMessage && (
-        <div className={`fixed bottom-4 right-4 px-4 py-3 rounded-xl shadow-2xl z-50 flex items-center gap-2 transform transition-all duration-300 translate-y-0 opacity-100 ${toastMessage.type === 'success' ? 'bg-[#1B4332] text-white' : 'bg-red-600 text-white'}`}>
+        <div className={`fixed bottom-4 right-4 px-4 py-3 rounded-xl shadow-2xl z-[99999] flex items-center gap-2 transform transition-all duration-300 translate-y-0 opacity-100 ${toastMessage.type === 'success' ? 'bg-[#1B4332] text-white' : 'bg-red-600 text-white'}`}>
           {toastMessage.type === 'success' ? <CheckCircle2 className="w-5 h-5 text-green-400" /> : <X className="w-5 h-5" />}
           <span className="font-medium text-sm">{toastMessage.text}</span>
         </div>
@@ -148,9 +272,17 @@ export const AdminGalleryAlbumPage = () => {
         <img src={coverImage} alt={albumName} className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#1B4332]/90 via-[#1B4332]/40 to-black/20" />
         
-        <button onClick={() => navigate('/admin/gallery')} className="absolute top-6 left-6 inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white rounded-xl text-sm font-semibold transition-colors border border-white/20">
-          <ArrowLeft size={16} /> Back to Gallery
-        </button>
+        <div className="absolute top-6 left-6 flex items-center gap-2">
+          <button onClick={() => navigate('/admin/gallery')} className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white rounded-xl text-sm font-semibold transition-colors border border-white/20">
+            <ArrowLeft size={16} /> Back
+          </button>
+        </div>
+
+        <div className="absolute top-6 right-6 flex items-center gap-2">
+          <button onClick={openEditAlbumModal} className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white rounded-xl text-sm font-semibold transition-colors border border-white/20 shadow-sm">
+            <Settings size={16} /> Edit Settings
+          </button>
+        </div>
 
         <div className="absolute bottom-6 left-6 right-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
@@ -213,14 +345,21 @@ export const AdminGalleryAlbumPage = () => {
             
             {/* Status Badge */}
             {item.status === 'pending' && (
-              <div className="absolute top-3 left-3 bg-amber-500 text-white backdrop-blur-sm border border-amber-400 px-2.5 py-1 rounded-lg text-[10px] font-bold shadow-sm uppercase tracking-wide">
+              <div className="absolute top-3 left-3 bg-amber-500 text-white backdrop-blur-sm border border-amber-400 px-2.5 py-1 rounded-lg text-[10px] font-bold shadow-sm uppercase tracking-wide z-10">
                 Pending
               </div>
             )}
 
             {/* Hover Actions */}
-            <div className="absolute inset-0 bg-[#1B4332]/60 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-4">
+            <div className="absolute inset-0 bg-[#1B4332]/60 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-4 z-20">
               <div className="flex justify-end items-start gap-2">
+                <button
+                  onClick={() => openEditPhotoModal(item)}
+                  className="p-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-full transition-transform transform hover:scale-110 shadow-lg"
+                  title="Edit Photo"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
                 {item.status === 'pending' && (
                   <button
                     onClick={() => handleApprove(item.id)}
@@ -248,6 +387,128 @@ export const AdminGalleryAlbumPage = () => {
           </div>
         ))}
       </div>
+
+      {/* Edit Album Modal */}
+      {editAlbumModalOpen && createPortal(
+        <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white border border-[#1B4332]/10 rounded-xl shadow-2xl max-w-lg w-full">
+            <div className="flex items-center justify-between p-4 border-b border-[#1B4332]/10">
+              <h3 className="text-lg font-bold text-[#1B4332] font-garamond flex items-center gap-2"><Settings className="w-5 h-5 text-[#FF6B35]" /> Edit Album Settings</h3>
+              <button onClick={() => setEditAlbumModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleSaveAlbum} className="p-4 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">Album Name *</label>
+                <input
+                  type="text"
+                  value={newAlbumName}
+                  onChange={(e) => setNewAlbumName(e.target.value)}
+                  className="w-full bg-[#f8fcf8] text-slate-800 border border-[#1B4332]/15 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF6B35] text-sm"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">Link Category</label>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {['None', 'Event', 'Blog'].map(type => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setLinkType(type)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border ${linkType === type ? 'bg-[#1B4332] text-white border-[#1B4332]' : 'bg-white text-slate-600 border-slate-200'}`}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {linkType === 'Event' && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">Select Linked Event</label>
+                  <select
+                    value={selectedEventId}
+                    onChange={(e) => setSelectedEventId(e.target.value)}
+                    className="w-full bg-[#f8fcf8] text-slate-800 border border-[#1B4332]/15 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF6B35] text-sm"
+                  >
+                    {events.map(ev => (
+                      <option key={ev.id} value={ev.id}>{ev.title}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {linkType === 'Blog' && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">Select Linked Blog</label>
+                  <select
+                    value={selectedBlogId}
+                    onChange={(e) => setSelectedBlogId(e.target.value)}
+                    className="w-full bg-[#f8fcf8] text-slate-800 border border-[#1B4332]/15 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF6B35] text-sm"
+                  >
+                    {blogs.map(bl => (
+                      <option key={bl.id} value={bl.id}>{bl.title}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-[#1B4332]/10">
+                <button type="button" onClick={() => setEditAlbumModalOpen(false)} className="px-4 py-2 border border-[#1B4332]/20 hover:bg-[#1B4332]/5 text-[#1B4332] rounded-xl text-sm font-semibold">
+                  Cancel
+                </button>
+                <button type="submit" disabled={isSavingAlbum} className="flex items-center gap-1.5 px-5 py-2 bg-[#FF6B35] hover:bg-[#E0531D] text-white rounded-xl text-sm font-bold shadow-sm">
+                  {isSavingAlbum && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>, document.body
+      )}
+
+      {/* Edit Photo Modal */}
+      {editingPhoto && createPortal(
+        <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white border border-[#1B4332]/10 rounded-xl shadow-2xl max-w-lg w-full flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between p-4 border-b border-[#1B4332]/10 shrink-0">
+              <h3 className="text-lg font-bold text-[#1B4332] font-garamond flex items-center gap-2"><Edit2 className="w-5 h-5 text-[#FF6B35]" /> Edit Photo</h3>
+              <button onClick={() => setEditingPhoto(null)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="overflow-y-auto p-4 flex-grow">
+              <div className="w-full h-48 bg-slate-100 rounded-xl overflow-hidden mb-4 border border-[#1B4332]/10">
+                <img src={editingPhoto.image_url} alt="Editing Preview" className="w-full h-full object-contain" />
+              </div>
+              <form onSubmit={handleSavePhoto} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">Caption / SEO Title</label>
+                  <textarea
+                    value={editCaption}
+                    onChange={(e) => setEditCaption(e.target.value)}
+                    className="w-full bg-[#f8fcf8] text-slate-800 border border-[#1B4332]/15 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF6B35] text-sm h-24 resize-none"
+                    placeholder="Enter caption..."
+                  />
+                </div>
+                <div className="flex justify-end gap-3 pt-2">
+                  <button type="button" onClick={() => setEditingPhoto(null)} className="px-4 py-2 border border-[#1B4332]/20 hover:bg-[#1B4332]/5 text-[#1B4332] rounded-xl text-sm font-semibold">
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={isSavingPhoto} className="flex items-center gap-1.5 px-5 py-2 bg-[#FF6B35] hover:bg-[#E0531D] text-white rounded-xl text-sm font-bold shadow-sm">
+                    {isSavingPhoto && <Loader2 className="w-4 h-4 animate-spin" />}
+                    Save Photo
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>, document.body
+      )}
+
     </div>
   );
 };

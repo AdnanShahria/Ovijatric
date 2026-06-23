@@ -214,7 +214,7 @@ export async function uploadImage(file: File, aspectRatio?: number, maxSizeMB: n
       method: 'POST',
       headers,
       body: formData
-    })
+    }, 120_000)
 
     const json = await res.json()
     if (res.ok && json.success) {
@@ -272,8 +272,8 @@ export async function uploadImageWithProgress(
 
       xhr.open('POST', '/api/upload');
 
-      // Set timeout
-      xhr.timeout = REQUEST_TIMEOUT_MS;
+      // Set timeout to 120 seconds for large uploads
+      xhr.timeout = 120_000;
 
       const token = localStorage.getItem('auth_token');
       if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
