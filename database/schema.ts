@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, index } from 'drizzle-orm/sqlite-core';
 
 export const users = sqliteTable('users', {
   id: text('id').primaryKey(),
@@ -26,6 +26,10 @@ export const events = sqliteTable('events', {
   sponsors: text('sponsors'),
   isRegistrationOpen: integer('is_registration_open', { mode: 'boolean' }).default(false).notNull(),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+}, (table) => {
+  return {
+    dateIdx: index('date_idx').on(table.date),
+  };
 });
 
 export const registrations = sqliteTable('registrations', {
@@ -38,6 +42,11 @@ export const registrations = sqliteTable('registrations', {
   studentId: text('student_id'),
   status: text('status').default('pending').notNull(),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+}, (table) => {
+  return {
+    eventIdIdx: index('event_id_idx').on(table.eventId),
+    userIdIdx: index('registration_user_id_idx').on(table.userId),
+  };
 });
 
 export const gallery = sqliteTable('gallery', {
@@ -51,6 +60,11 @@ export const gallery = sqliteTable('gallery', {
   linkedBlogPostId: text('linked_blog_post_id'),
   linkedMapPinId: text('linked_map_pin_id'),
   uploadedAt: integer('uploaded_at', { mode: 'timestamp' }).notNull(),
+}, (table) => {
+  return {
+    userIdIdx: index('gallery_user_id_idx').on(table.userId),
+    linkedEventIdIdx: index('gallery_linked_event_id_idx').on(table.linkedEventId),
+  };
 });
 
 export const team = sqliteTable('team', {
@@ -72,6 +86,10 @@ export const blogPosts = sqliteTable('blog_posts', {
   hoverImageUrl: text('hover_image_url'),
   additionalImages: text('additional_images'),
   publishedAt: integer('published_at', { mode: 'timestamp' }).notNull(),
+}, (table) => {
+  return {
+    publishedAtIdx: index('published_at_idx').on(table.publishedAt),
+  };
 });
 
 export const contactMessages = sqliteTable('contact_messages', {

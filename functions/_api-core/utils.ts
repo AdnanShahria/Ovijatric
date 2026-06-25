@@ -201,11 +201,11 @@ export function generateSalt(length = 16): string {
   return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
-export async function hashPassword(password: string, salt: string): Promise<string> {
+export async function hashPassword(password: string, salt: string, iterations = 600000): Promise<string> {
   const enc = new TextEncoder()
   const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), { name: 'PBKDF2' }, false, ['deriveBits', 'deriveKey'])
   const key = await crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt: enc.encode(salt), iterations: 100000, hash: 'SHA-256' },
+    { name: 'PBKDF2', salt: enc.encode(salt), iterations, hash: 'SHA-256' },
     keyMaterial,
     { name: 'HMAC', hash: 'SHA-256', length: 256 },
     true,

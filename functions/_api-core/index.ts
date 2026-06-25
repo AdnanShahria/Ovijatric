@@ -39,6 +39,9 @@ function isSecretSafe(secret: string | undefined): boolean {
   return true
 }
 
+let cachedDb: any = null
+let cachedDbClient: any = null
+
 export default {
   async fetch(request: Request, env: Env, ctx: any): Promise<Response> {
     const url = new URL(request.url)
@@ -71,17 +74,17 @@ export default {
     }
 
     // ── CREATE DB CLIENT ────────────────────────────────────────────
-    let db: any = null
-    let dbClient: any = null
-    if (env.TURSO_DATABASE_URL && env.TURSO_AUTH_TOKEN) {
+    if (!cachedDb && env.TURSO_DATABASE_URL && env.TURSO_AUTH_TOKEN) {
       try {
         const dbUrl = env.TURSO_DATABASE_URL.replace('libsql://', 'https://')
-        dbClient = createClient({ url: dbUrl, authToken: env.TURSO_AUTH_TOKEN })
-        db = drizzle(dbClient)
+        cachedDbClient = createClient({ url: dbUrl, authToken: env.TURSO_AUTH_TOKEN })
+        cachedDb = drizzle(cachedDbClient)
       } catch (e) {
         console.error("Failed to create DB client:", e)
       }
     }
+    const db = cachedDb
+    const dbClient = cachedDbClient
 
     // ── PATH-BASED ROUTING ──────────────────────────────────────────
     try {

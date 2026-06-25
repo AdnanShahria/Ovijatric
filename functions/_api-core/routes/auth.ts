@@ -86,14 +86,15 @@ export async function handleAuthRoutes(url: URL, request: Request, db: any, env:
 
       // Hash password
       const salt = generateSalt()
-      const hash = await hashPassword(password, salt)
+      const iterations = 600000
+      const hash = await hashPassword(password, salt, iterations)
       const userId = generateUUID()
 
       // Insert user
       await db.insert(users).values({
         id: userId,
         email,
-        passwordHash: `${salt}:${hash}`,
+        passwordHash: `${iterations}:${salt}:${hash}`,
         name,
         role: 'member',
         createdAt: new Date()
@@ -145,8 +146,18 @@ export async function handleAuthRoutes(url: URL, request: Request, db: any, env:
       }
 
       const user = result[0]
-      const [storedSalt, storedHash] = user.passwordHash.split(':')
-      const computedHash = await hashPassword(password, storedSalt)
+      const parts = user.passwordHash.split(':')
+      let storedIterations = 100000
+      let storedSalt, storedHash
+      if (parts.length === 3) {
+        storedIterations = parseInt(parts[0], 10)
+        storedSalt = parts[1]
+        storedHash = parts[2]
+      } else {
+        storedSalt = parts[0]
+        storedHash = parts[1]
+      }
+      const computedHash = await hashPassword(password, storedSalt, storedIterations)
 
       if (computedHash !== storedHash) {
         return jsonResponse({ error: "Invalid email or password" }, cors, 401)
